@@ -1,13 +1,11 @@
 use color_eyre::eyre::Result;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-use std::time::Duration;
-
 use crate::{
-    action::Action,
-    model::{MessagesModel, SessionsModel},
+    action::{Action, MessagesModelAction, SessionsModelAction},
+    model::{messages::MessagesModel, sessions::SessionsModel},
     tio::Tio,
-    ui::{ActiveUI, UITree},
+    ui::{root_window::RootWindow, ActiveUI},
 };
 
 pub struct App {
@@ -45,41 +43,12 @@ impl App {
                 self.should_draw = true;
             }
             // action to update SessionsModel
-            Action::FetchSessionPool => {
-                // this seems useless now, but fetch should be a async function
-                // so we are not able to update sessions_model in the coroutine
-                // the solution is to defer this update
-                // async spawn invoke
-                let _tx = self.action_tx.clone();
-                tokio::spawn(async move {
-                    // TODO: fetch will be a async funtion, currently we use sleep to simulate
-                    tokio::time::sleep(Duration::from_secs(3)).await;
-                    // SessionsModel::fetch().await;
-                    let sessions = SessionsModel::fetch();
-                    _tx.send(Action::LoadSessionPool(sessions)).unwrap();
-                });
-                // async spawn end
-            }
-            Action::LoadSessionPool(sp) => {
-                self.sessions_model.load_model_data(sp);
-            }
-            Action::ReloadSessionPool => {
-                self.sessions_model.reload_model();
+            Action::SessionsModel(act) => {
+                self.sessions_model.handle_action(act);
             }
             // action to update MessagesModel
-            Action::FetchMessages(chat_session) => {
-                let _tx = self.action_tx.clone();
-                tokio::spawn(async move {
-                    tokio::time::sleep(Duration::from_secs(3)).await;
-                    let messages = MessagesModel::fetch(chat_session);
-                    _tx.send(Action::LoadMessages(messages)).unwrap();
-                });
-            }
-            Action::LoadMessages(v) => {
-                self.messages_model.load_model_data(v);
-            }
-            Action::Bind(chat_session) => {
-                self.messages_model.set_bind(chat_session);
+            Action::MessagesModel(act) => {
+                self.messages_model.handle_action(act);
             }
             Action::SetActive(ui) => {
                 self.active_ui = ui;
@@ -96,12 +65,28 @@ impl App {
         }
     }
 
+    fn init_model(&mut self) -> Result<()> {
+        self.action_tx
+            .send(Action::SessionsModel(SessionsModelAction::Init))?;
+        self.action_tx
+            .send(Action::MessagesModel(MessagesModelAction::Init))?;
+
+        Ok(())
+    }
+
     pub async fn run(&mut self) -> Result<()> {
         let mut tio = Tio::new(4.0, 60.0)?;
+        self.init_model()?;
 
         // handle event first, event should be dispatch to UI skeleton
         tio.enter()?;
-        let mut ui_tree = UITree::with_context_model(self);
+        let mut ui_tree = RootWindow::with_context_model(self);
+        self.action_tx
+            .send(Action::SessionsModel(SessionsModelAction::Init))
+            .unwrap();
+        self.action_tx
+            .send(Action::MessagesModel(MessagesModelAction::Init))
+            .unwrap();
         loop {
             if let Some(evt) = tio.next_event().await {
                 let action = ui_tree.handle_base_event(evt, self);
