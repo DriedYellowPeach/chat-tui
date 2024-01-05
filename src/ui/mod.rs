@@ -8,11 +8,6 @@ pub mod keypress_hint;
 pub mod message_viewer;
 pub mod root_window;
 
-pub enum ActiveUI {
-    LEFT,
-    RIGHT,
-}
-
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
 pub enum UiTag {
     RootWindow,
@@ -24,9 +19,10 @@ pub enum UiTag {
 pub type UiId = u16;
 
 pub struct UiMetaData {
-    pub shoud_draw: Cell<bool>,
+    shoud_draw: Cell<bool>,
     current_active: Cell<UiId>,
     id_counter: Cell<u16>,
+    draw_counter: Cell<u64>,
     tag_to_id: RefCell<HashMap<UiTag, UiId>>,
 }
 
@@ -36,6 +32,7 @@ impl UiMetaData {
             current_active: Cell::new(0),
             shoud_draw: Cell::new(false),
             id_counter: Cell::new(0),
+            draw_counter: Cell::new(0),
             tag_to_id: RefCell::new(HashMap::new()),
         }
     }
@@ -73,6 +70,13 @@ impl UiMetaData {
 
     pub fn get_id(&self, tag: &UiTag) -> Option<UiId> {
         self.tag_to_id.borrow().get(tag).copied()
+    }
+
+    pub fn increment_draw_counter(&self) {
+        match self.draw_counter.get().checked_add(1) {
+            None => self.draw_counter.set(0),
+            Some(x) => self.draw_counter.set(x),
+        }
     }
 }
 

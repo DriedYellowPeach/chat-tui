@@ -9,7 +9,10 @@ use crate::{
     tio::{TerminalEvent, Tio},
 };
 
-use super::{chat_sidebar::LeftSessionList, message_viewer::RightSpace, UiId, UiMetaData, UiTag};
+use super::{
+    chat_sidebar::LeftSessionList, fps_hint::FpsHint, message_viewer::RightSpace, UiId, UiMetaData,
+    UiTag,
+};
 
 #[derive(Default)]
 pub struct RootWindow {
@@ -17,6 +20,7 @@ pub struct RootWindow {
     tag: Option<UiTag>,
     left_session_list: LeftSessionList,
     right_space: RightSpace,
+    fps_hint: FpsHint,
     pub meta_data: Rc<UiMetaData>,
 }
 
@@ -43,6 +47,8 @@ impl RootWindow {
             .with_context_model(app)
             .with_tag(UiTag::MessageViewer);
 
+        ret.fps_hint = ret.fps_hint.with_metadata(ret.meta_data.clone());
+
         ret
     }
 
@@ -67,8 +73,6 @@ impl RootWindow {
             }
             TerminalEvent::Key(k) if k.code == KeyCode::Char('q') => Action::Quit,
             // TODO: this event->action map should be put into in the sub ui node left-session-list
-            TerminalEvent::Key(k) if k.code == KeyCode::Char('+') => Action::Increment,
-            TerminalEvent::Key(k) if k.code == KeyCode::Char('-') => Action::Decrement,
             TerminalEvent::Key(k) if k.code == KeyCode::Tab => {
                 // TODO: error handling
                 self.meta_data.next_active();
@@ -100,7 +104,8 @@ impl RootWindow {
         tio.canvas
             .draw(|f| {
                 self.left_session_list.draw(app, f, chunks[0]);
-                self.right_space.draw(app, f, chunks[1])
+                self.right_space.draw(app, f, chunks[1]);
+                self.fps_hint.draw(app, f, f.size());
             })
             .unwrap();
     }

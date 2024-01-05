@@ -1,7 +1,4 @@
-use crate::{
-    model::{ChatSession, MsgID, SessionPool},
-    ui::{UiId, UiTag},
-};
+use crate::model::{ChatSession, MsgID, SessionPool};
 
 pub enum SessionsModelAction {
     Reload,
@@ -19,18 +16,10 @@ pub enum MessagesModelAction {
     SetMessages(Vec<MsgID>),
 }
 
-pub enum UiSharedModelAction {
-    IncrementId,
-    SetActiveUi(UiId),
-    SetUiTag(UiTag, UiId),
-}
-
 pub enum Action {
     SessionsModel(SessionsModelAction),
     MessagesModel(MessagesModelAction),
     Nop,
     Quit,
-    Increment,
-    Decrement,
     MultiAction(Vec<Action>),
 }
