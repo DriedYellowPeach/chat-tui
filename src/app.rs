@@ -7,7 +7,7 @@ use crate::{
     action::Action,
     model::{messages::MessagesModel, sessions::SessionsModel},
     tio::Tio,
-    ui::{root_window::RootWindow, ActiveUI, UiMetaData, UiTag},
+    ui::{root_window::RootWindow, UiMetaData, UiTag},
 };
 
 pub struct App {
@@ -16,8 +16,6 @@ pub struct App {
     action_rx: UnboundedReceiver<Action>,
     pub sessions_model: SessionsModel,
     pub messages_model: MessagesModel,
-    pub active_ui: ActiveUI,
-    counter: u64,
 }
 
 impl App {
@@ -28,8 +26,6 @@ impl App {
             sessions_model: SessionsModel::new(action_tx.clone()),
             messages_model: MessagesModel::new(action_tx.clone()),
             shoud_quit: false,
-            active_ui: ActiveUI::RIGHT,
-            counter: 0,
             action_tx,
             action_rx,
         })
@@ -52,22 +48,21 @@ impl App {
                 }
             }
             Action::Quit => self.shoud_quit = true,
-            Action::Increment => self.counter += 1,
-            Action::Decrement => self.counter -= 1,
             Action::Nop => {}
         }
     }
 
     pub async fn run(&mut self) -> Result<()> {
         let mut tio = Tio::new(4.0, 60.0)?;
+        tio.enter()?;
 
         // handle event first, event should be dispatch to UI skeleton
-        tio.enter()?;
         let meta = Rc::new(UiMetaData::new());
         let mut ui_tree = RootWindow::default()
             .with_metadata(meta)
             .with_context_model(self)
             .with_tag(UiTag::InputHint);
+
         loop {
             if let Some(evt) = tio.next_event().await {
                 let action = ui_tree.handle_base_event(evt, self);
@@ -82,6 +77,7 @@ impl App {
             // draw ui here
             if ui_tree.meta_data.get_should_draw() {
                 ui_tree.draw(self, &mut tio);
+                ui_tree.meta_data.increment_draw_counter();
                 ui_tree.meta_data.set_should_draw(false);
             }
 
