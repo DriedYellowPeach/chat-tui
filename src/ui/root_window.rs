@@ -3,11 +3,13 @@ use ratatui::prelude::*;
 
 use std::rc::Rc;
 
-use crate::action::Action;
-use crate::app::App;
-use crate::tio::{TerminalEvent, Tio};
+use crate::{
+    action::Action,
+    app::App,
+    tio::{TerminalEvent, Tio},
+};
 
-use super::{chat_sidebar::*, message_viewer::*, UiId, UiMetaData, UiTag};
+use super::{chat_sidebar::LeftSessionList, message_viewer::RightSpace, UiId, UiMetaData, UiTag};
 
 #[derive(Default)]
 pub struct RootWindow {
@@ -44,7 +46,7 @@ impl RootWindow {
         ret
     }
 
-    pub fn with_tag(self, tag: UiTag, app: &App) -> Self {
+    pub fn with_tag(self, tag: UiTag) -> Self {
         let mut ret = self;
         ret.tag = Some(tag);
         ret.meta_data.set_tag(tag, ret.id);

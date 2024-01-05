@@ -67,7 +67,7 @@ impl App {
         let mut ui_tree = RootWindow::default()
             .with_metadata(meta)
             .with_context_model(self)
-            .with_tag(UiTag::InputHint, self);
+            .with_tag(UiTag::InputHint);
         loop {
             if let Some(evt) = tio.next_event().await {
                 let action = ui_tree.handle_base_event(evt, self);

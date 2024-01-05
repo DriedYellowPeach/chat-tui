@@ -7,10 +7,7 @@ use ratatui::{
 
 use std::rc::Rc;
 
-use crate::action::Action;
-use crate::app::App;
-use crate::model::RemoteData;
-use crate::tio::TerminalEvent;
+use crate::{action::Action, app::App, model::RemoteData, tio::TerminalEvent};
 
 use super::{UiId, UiMetaData, UiTag};
 
