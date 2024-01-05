@@ -1,23 +1,23 @@
 use color_eyre::eyre::Result;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
+use std::rc::Rc;
+
 use crate::{
-    action::{Action, MessagesModelAction, SessionsModelAction},
+    action::Action,
     model::{messages::MessagesModel, sessions::SessionsModel},
     tio::Tio,
-    ui::{root_window::RootWindow, ActiveUI},
+    ui::{root_window::RootWindow, ActiveUI, UiMetaData, UiTag},
 };
 
 pub struct App {
     shoud_quit: bool,
     action_tx: UnboundedSender<Action>,
     action_rx: UnboundedReceiver<Action>,
-    should_draw: bool,
     pub sessions_model: SessionsModel,
     pub messages_model: MessagesModel,
     pub active_ui: ActiveUI,
     counter: u64,
-    // pub tio: Tio,
 }
 
 impl App {
@@ -28,7 +28,6 @@ impl App {
             sessions_model: SessionsModel::new(action_tx.clone()),
             messages_model: MessagesModel::new(action_tx.clone()),
             shoud_quit: false,
-            should_draw: false,
             active_ui: ActiveUI::RIGHT,
             counter: 0,
             action_tx,
@@ -39,9 +38,6 @@ impl App {
     // this function handle or dispatch all actions
     pub fn handle_action(&mut self, action: Action) {
         match action {
-            Action::Render => {
-                self.should_draw = true;
-            }
             // action to update SessionsModel
             Action::SessionsModel(act) => {
                 self.sessions_model.handle_action(act);
@@ -49,9 +45,6 @@ impl App {
             // action to update MessagesModel
             Action::MessagesModel(act) => {
                 self.messages_model.handle_action(act);
-            }
-            Action::SetActive(ui) => {
-                self.active_ui = ui;
             }
             Action::MultiAction(actions) => {
                 for action in actions {
@@ -65,28 +58,16 @@ impl App {
         }
     }
 
-    fn init_model(&mut self) -> Result<()> {
-        self.action_tx
-            .send(Action::SessionsModel(SessionsModelAction::Init))?;
-        self.action_tx
-            .send(Action::MessagesModel(MessagesModelAction::Init))?;
-
-        Ok(())
-    }
-
     pub async fn run(&mut self) -> Result<()> {
         let mut tio = Tio::new(4.0, 60.0)?;
-        self.init_model()?;
 
         // handle event first, event should be dispatch to UI skeleton
         tio.enter()?;
-        let mut ui_tree = RootWindow::with_context_model(self);
-        self.action_tx
-            .send(Action::SessionsModel(SessionsModelAction::Init))
-            .unwrap();
-        self.action_tx
-            .send(Action::MessagesModel(MessagesModelAction::Init))
-            .unwrap();
+        let meta = Rc::new(UiMetaData::new());
+        let mut ui_tree = RootWindow::default()
+            .with_metadata(meta)
+            .with_context_model(self)
+            .with_tag(UiTag::InputHint, self);
         loop {
             if let Some(evt) = tio.next_event().await {
                 let action = ui_tree.handle_base_event(evt, self);
@@ -99,13 +80,12 @@ impl App {
             }
 
             // draw ui here
-            if self.should_draw {
+            if ui_tree.meta_data.get_should_draw() {
                 ui_tree.draw(self, &mut tio);
-                self.should_draw = false;
+                ui_tree.meta_data.set_should_draw(false);
             }
 
             if self.shoud_quit {
-                // self.tio.leave()?;
                 break;
             }
         }

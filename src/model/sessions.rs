@@ -20,14 +20,22 @@ impl SessionsModel {
     }
 
     pub fn get_model_data(&self) -> RemoteData<&SessionPool> {
-        self.sessions.as_ref()
+        match &self.sessions {
+            RemoteData::Uninitialized => {
+                self.action_tx
+                    .send(Action::SessionsModel(SessionsModelAction::Fetch))
+                    .unwrap();
+                RemoteData::Pending
+            }
+            _ => self.sessions.as_ref(),
+        }
     }
 
     pub fn handle_action(&mut self, action: SessionsModelAction) {
         match action {
-            SessionsModelAction::Init => {
-                self.act_on_init();
-            }
+            // SessionsModelAction::Init => {
+            //     self.act_on_init();
+            // }
             SessionsModelAction::Reload => {
                 self.act_on_reload();
             }
@@ -66,20 +74,18 @@ impl SessionsModel {
         SessionPool(sessions)
     }
 
-    fn act_on_init(&mut self) {
+    // TODO: should the data set to empty pending or use the cached data to display?
+    // Better statemachine on RemoteData
+    fn act_on_reload(&mut self) {
+        // TODO: maybe reuse the garbage here, not drop vec entirely, keep the space
+        // currently I just keep things simple
         self.sessions = RemoteData::Pending;
         self.action_tx
             .send(Action::SessionsModel(SessionsModelAction::Fetch))
             .unwrap();
     }
 
-    fn act_on_reload(&mut self) {
-        // TODO: maybe reuse the garbage here, not drop vec entirely, keep the space
-        // currently I just keep things simple
-        self.act_on_init();
-    }
-
-    fn act_on_fetch(&self) {
+    fn act_on_fetch(&mut self) {
         let _tx = self.action_tx.clone();
 
         tokio::spawn(async move {

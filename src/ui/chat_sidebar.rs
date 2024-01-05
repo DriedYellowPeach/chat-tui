@@ -2,6 +2,8 @@ use crossterm::event::KeyCode;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState};
 
+use std::rc::Rc;
+
 use crate::{
     action::{Action, MessagesModelAction},
     app::App,
@@ -9,7 +11,7 @@ use crate::{
     tio::TerminalEvent,
 };
 
-use super::ActiveUI;
+use super::{UiId, UiMetaData, UiTag};
 
 struct Content {
     chat_session: ChatSession,
@@ -41,9 +43,13 @@ impl From<&SessionRecord> for Content {
     }
 }
 
+#[derive(Default)]
 pub struct LeftSessionList {
+    id: UiId,
+    tag: Option<UiTag>,
     state: ListState,
     items: Vec<Content>,
+    meta_data: Rc<UiMetaData>,
 }
 
 enum SessionListUI<'a> {
@@ -52,14 +58,15 @@ enum SessionListUI<'a> {
 }
 
 impl LeftSessionList {
-    pub fn new() -> Self {
-        Self {
-            state: ListState::default(),
-            items: Vec::new(),
-        }
+    pub fn with_metadata(self, meta: Rc<UiMetaData>) -> Self {
+        let mut ret = self;
+        ret.id = meta.next_id();
+        ret.meta_data = meta;
+        ret
     }
 
-    pub fn with_context_model(app: &mut App) -> Self {
+    pub fn with_context_model(self, app: &App) -> Self {
+        let mut ret = self;
         let mut items = Vec::new();
         match app.sessions_model.get_model_data() {
             RemoteData::Success(data) => {
@@ -72,13 +79,19 @@ impl LeftSessionList {
                 assert_eq!(items.len(), 0);
             }
         }
-        Self {
-            state: ListState::default(),
-            items,
-        }
+
+        ret.items = items;
+        ret
     }
 
-    fn update_with_context_model(&mut self, app: &mut App) {
+    pub fn with_tag(self, tag: UiTag) -> Self {
+        let mut ret = self;
+        ret.tag = Some(tag);
+        ret.meta_data.set_tag(tag, ret.id);
+        ret
+    }
+
+    fn update_with_context_model(&mut self, app: &App) {
         let mut items = Vec::new();
         match app.sessions_model.get_model_data() {
             RemoteData::Success(data) => {
@@ -94,7 +107,7 @@ impl LeftSessionList {
         self.items = items;
     }
 
-    fn get_ui<'a>(&mut self, app: &mut App, area: Rect) -> SessionListUI<'a> {
+    fn get_ui<'a>(&mut self, app: &App, area: Rect) -> SessionListUI<'a> {
         self.update_with_context_model(app);
         let mut title = "Chats";
         let mut items: Vec<ListItem> = self
@@ -106,7 +119,6 @@ impl LeftSessionList {
                     Line::from(content.session_name.clone().bold()),
                     Line::from(content.last_msg_time.clone().fg(Color::Green)),
                     Line::from(content.last_msg.clone().fg(Color::Blue)),
-                    // Line::from(content.unread_msg.to_string().fg(Color::Red)),
                     Line::from(vec![
                         "unread: ".fg(Color::White),
                         content
@@ -122,21 +134,9 @@ impl LeftSessionList {
             .collect();
 
         if items.is_empty() {
-            // let paragraph = Paragraph::new("Waiting for data...")
-            //     .block(Block::default().borders(Borders::ALL).title("Sessions"));
-            // return SessionListUI::Waiting(paragraph);
             title = "Chats";
             items.push(ListItem::new(Line::from("Waiting for data")));
         }
-
-        // let my_list = vec!["hello", "hello", "hello"];
-        // let items: Vec<ListItem> = my_list
-        //     .iter()
-        //     .map(|content| {
-        //         ListItem::new(*content)
-        //             .style(Style::default().fg(Color::Black).bg(Color::White))
-        //     })
-        //     .collect();
 
         SessionListUI::Already(
             List::new(items)
@@ -147,11 +147,9 @@ impl LeftSessionList {
                         .add_modifier(Modifier::BOLD),
                 ),
         )
-
-        // f.render_stateful_widget(list, area, &mut self.state);
     }
 
-    pub fn draw(&mut self, app: &mut App, frame: &mut Frame, area: Rect) {
+    pub fn draw(&mut self, app: &App, frame: &mut Frame, area: Rect) {
         let ui = self.get_ui(app, area);
         match ui {
             SessionListUI::Already(list) => {
@@ -163,7 +161,7 @@ impl LeftSessionList {
         }
     }
 
-    pub fn handle_inner_event(&mut self, event: TerminalEvent) -> Action {
+    pub fn handle_inner_event(&mut self, event: TerminalEvent, app: &App) -> Action {
         match event {
             TerminalEvent::Key(k) if k.code == KeyCode::Char('j') => {
                 self.next();
@@ -173,16 +171,14 @@ impl LeftSessionList {
                 self.prev();
                 Action::Nop
             }
-            // TerminalEvent::Key(k) if k.code == KeyCode::Char('r') => Action::ReloadSessionPool,
             TerminalEvent::Key(k) if k.code == KeyCode::Enter => {
                 if let Some(offset) = self.state.selected() {
-                    let actions = vec![
-                        Action::MessagesModel(MessagesModelAction::SetBind(
-                            self.items[offset].chat_session.clone(),
-                        )),
-                        Action::SetActive(ActiveUI::RIGHT),
-                    ];
-                    Action::MultiAction(actions)
+                    // TODO: error handling
+                    let message_viewer_id = self.meta_data.get_id(&UiTag::MessageViewer).unwrap();
+                    self.meta_data.set_active(message_viewer_id);
+                    Action::MessagesModel(MessagesModelAction::SetBind(
+                        self.items[offset].chat_session.clone(),
+                    ))
                 } else {
                     Action::Nop
                 }

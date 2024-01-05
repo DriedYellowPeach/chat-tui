@@ -5,15 +5,22 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 
+use std::rc::Rc;
+
 use crate::action::Action;
 use crate::app::App;
 use crate::model::RemoteData;
 use crate::tio::TerminalEvent;
 
+use super::{UiId, UiMetaData, UiTag};
+
 #[derive(Default)]
 pub struct RightSpace {
+    id: UiId,
+    tag: Option<UiTag>,
     title: String,
     messages: Vec<String>,
+    meta_data: Rc<UiMetaData>,
     pub vertical_scroll_state: ScrollbarState,
     pub vertical_scroll: usize,
     pub horizontal_scroll_state: ScrollbarState,
@@ -21,11 +28,15 @@ pub struct RightSpace {
 }
 
 impl RightSpace {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn with_metadata(self, meta: Rc<UiMetaData>) -> Self {
+        let mut ret = self;
+        ret.id = meta.next_id();
+        ret.meta_data = meta;
+        ret
     }
 
-    pub fn with_context_model(app: &mut App) -> Self {
+    pub fn with_context_model(self, app: &App) -> Self {
+        let mut ret = self;
         let mut messages = Vec::new();
         let title;
         // let default_rs = Self::default();
@@ -48,21 +59,24 @@ impl RightSpace {
         let long_text_len = long_text.len();
         messages.push(long_text);
 
-        let mut ret = Self {
-            title,
-            messages,
-            ..Default::default()
-        };
-
+        ret.title = title;
+        ret.messages = messages;
         ret.vertical_scroll_state = ret.vertical_scroll_state.content_length(ret.messages.len());
         ret.horizontal_scroll_state = ret.horizontal_scroll_state.content_length(long_text_len);
+
         ret
     }
 
-    fn update_with_context_model(&mut self, app: &mut App) {
+    pub fn with_tag(self, tag: UiTag) -> Self {
+        let mut ret = self;
+        ret.tag = Some(tag);
+        ret.meta_data.set_tag(tag, ret.id);
+        ret
+    }
+
+    fn update_with_context_model(&mut self, app: &App) {
         let mut messages = Vec::new();
         let title;
-        // let default_rs = Self::default();
         if let Some(session_name) = app.messages_model.bind.clone() {
             title = format!("Messages from {:?}", session_name);
             match app.messages_model.get_model_data() {
@@ -90,7 +104,7 @@ impl RightSpace {
         self.horizontal_scroll_state = self.horizontal_scroll_state.content_length(long_text_len);
     }
 
-    fn get_ui_paragraph<'a>(&self, _app: &mut App) -> Paragraph<'a> {
+    fn get_ui_paragraph<'a>(&self, _app: &App) -> Paragraph<'a> {
         let create_block = |title| {
             Block::default()
                 .borders(Borders::ALL)
@@ -114,7 +128,7 @@ impl RightSpace {
         paragraph
     }
 
-    fn get_ui_horizontal_scrollbar<'a>(&self, _app: &mut App) -> Scrollbar<'a> {
+    fn get_ui_horizontal_scrollbar<'a>(&self, _app: &App) -> Scrollbar<'a> {
         let ret = Scrollbar::default()
             .orientation(ScrollbarOrientation::HorizontalBottom)
             .symbols(ratatui::symbols::scrollbar::HORIZONTAL);
@@ -122,7 +136,7 @@ impl RightSpace {
         ret
     }
 
-    fn get_ui_vertical_scrollbar<'a>(&self, _app: &mut App) -> Scrollbar<'a> {
+    fn get_ui_vertical_scrollbar<'a>(&self, _app: &App) -> Scrollbar<'a> {
         let ret = Scrollbar::default()
             .orientation(ScrollbarOrientation::VerticalRight)
             .begin_symbol(Some("↑"))
@@ -131,7 +145,7 @@ impl RightSpace {
         ret
     }
 
-    pub fn draw(&mut self, app: &mut App, frame: &mut Frame<'_>, area: Rect) {
+    pub fn draw(&mut self, app: &App, frame: &mut Frame<'_>, area: Rect) {
         self.update_with_context_model(app);
         let paragraph = self.get_ui_paragraph(app);
         let vertical_scroll = self.get_ui_vertical_scrollbar(app);
@@ -141,7 +155,7 @@ impl RightSpace {
         frame.render_stateful_widget(horizontal_scroll, area, &mut self.horizontal_scroll_state);
     }
 
-    pub fn handle_inner_event(&mut self, event: TerminalEvent) -> Action {
+    pub fn handle_inner_event(&mut self, event: TerminalEvent, _app: &App) -> Action {
         if let TerminalEvent::Key(key) = event {
             match key.code {
                 KeyCode::Char('j') => {

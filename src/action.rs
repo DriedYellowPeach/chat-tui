@@ -1,10 +1,9 @@
 use crate::{
     model::{ChatSession, MsgID, SessionPool},
-    ui::ActiveUI,
+    ui::{UiId, UiTag},
 };
 
 pub enum SessionsModelAction {
-    Init,
     Reload,
     // fetch and set should be private action
     // cause they are never used by ui components
@@ -13,7 +12,6 @@ pub enum SessionsModelAction {
 }
 
 pub enum MessagesModelAction {
-    Init,
     Reload,
     SetBind(ChatSession),
     // below are private actions
@@ -21,20 +19,18 @@ pub enum MessagesModelAction {
     SetMessages(Vec<MsgID>),
 }
 
+pub enum UiSharedModelAction {
+    IncrementId,
+    SetActiveUi(UiId),
+    SetUiTag(UiTag, UiId),
+}
+
 pub enum Action {
-    // SessionsModel
-    // FetchSessionPool,
-    // ReloadSessionPool,
-    // LoadSessionPool(SessionPool),
     SessionsModel(SessionsModelAction),
-    // MessagesModel
     MessagesModel(MessagesModelAction),
-    // Set Active UI
-    SetActive(ActiveUI),
     Nop,
     Quit,
     Increment,
     Decrement,
     MultiAction(Vec<Action>),
-    Render,
 }

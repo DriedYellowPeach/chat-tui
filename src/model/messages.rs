@@ -15,7 +15,9 @@ pub struct MessagesModel {
 impl MessagesModel {
     pub fn new(action_tx: UnboundedSender<Action>) -> Self {
         Self {
-            bind: None,
+            bind: Some(ChatSession::WithOther(UsrID(
+                "SystemBotRaphina".to_string(),
+            ))),
             messages: RemoteData::Uninitialized,
             action_tx,
         }
@@ -31,28 +33,25 @@ impl MessagesModel {
         }
     }
 
-    pub fn get_model_data(&mut self) -> RemoteData<&Vec<MsgID>> {
-        self.messages.as_ref()
+    pub fn get_model_data(&self) -> RemoteData<&Vec<MsgID>> {
+        match self.messages {
+            RemoteData::Uninitialized => {
+                self.action_tx
+                    .send(Action::MessagesModel(MessagesModelAction::Fetch))
+                    .unwrap();
+                RemoteData::Pending
+            }
+            _ => self.messages.as_ref(),
+        }
     }
 
     pub fn handle_action(&mut self, action: MessagesModelAction) {
         match action {
-            MessagesModelAction::Init => self.act_on_init(),
             MessagesModelAction::Fetch => self.act_on_fetch(),
             MessagesModelAction::Reload => self.act_on_reload(),
             MessagesModelAction::SetBind(v) => self.act_on_set_bind(v),
             MessagesModelAction::SetMessages(data) => self.act_on_set_messages(data),
         }
-    }
-
-    fn act_on_init(&mut self) {
-        self.messages = RemoteData::Pending;
-        self.bind = Some(ChatSession::WithOther(UsrID(
-            "SystemBotRaphina".to_string(),
-        )));
-        self.action_tx
-            .send(Action::MessagesModel(MessagesModelAction::Fetch))
-            .unwrap();
     }
 
     fn act_on_reload(&mut self) {

@@ -1,10 +1,6 @@
 /// Model is the module for representing all underlying data for this application
 /// Basic types includes: User, Message, Group
 ///
-use tokio::sync::mpsc::UnboundedSender;
-
-use crate::action::{Action, MessagesModelAction, SessionsModelAction};
-
 pub mod messages;
 pub mod sessions;
 
