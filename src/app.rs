@@ -53,7 +53,7 @@ impl App {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        let mut tio = Tio::new(4.0, 60.0)?;
+        let mut tio = Tio::new(4.0, 30.0)?;
         tio.enter()?;
 
         // handle event first, event should be dispatch to UI skeleton
