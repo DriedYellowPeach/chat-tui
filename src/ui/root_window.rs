@@ -10,8 +10,8 @@ use crate::{
 };
 
 use super::{
-    chat_sidebar::LeftSessionList, fps_hint::FpsHint, message_viewer::RightSpace, UiId, UiMetaData,
-    UiTag,
+    chat_sidebar::LeftSessionList, fps_hint::FpsHint, keypress_hint::KeyPressHint,
+    message_viewer::RightSpace, UiId, UiMetaData, UiTag,
 };
 
 #[derive(Default)]
@@ -21,6 +21,7 @@ pub struct RootWindow {
     left_session_list: LeftSessionList,
     right_space: RightSpace,
     fps_hint: FpsHint,
+    key_press_hint: KeyPressHint,
     pub meta_data: Rc<UiMetaData>,
 }
 
@@ -40,14 +41,13 @@ impl RootWindow {
             .with_metadata(ret.meta_data.clone())
             .with_context_model(app)
             .with_tag(UiTag::ChatSidebar);
-
         ret.right_space = ret
             .right_space
             .with_metadata(ret.meta_data.clone())
             .with_context_model(app)
             .with_tag(UiTag::MessageViewer);
-
         ret.fps_hint = ret.fps_hint.with_metadata(ret.meta_data.clone());
+        ret.key_press_hint = ret.key_press_hint.with_metadata(ret.meta_data.clone());
 
         ret
     }
@@ -60,6 +60,7 @@ impl RootWindow {
     }
 
     pub fn handle_base_event(&mut self, event: TerminalEvent, app: &App) -> Action {
+        let event = self.key_press_hint.proxy_event(event, app);
         // q to quit, + to add fps, - to reduce fps
         match event {
             TerminalEvent::Error
@@ -106,6 +107,7 @@ impl RootWindow {
                 self.left_session_list.draw(app, f, chunks[0]);
                 self.right_space.draw(app, f, chunks[1]);
                 self.fps_hint.draw(app, f, f.size());
+                self.key_press_hint.draw(app, f, f.size());
             })
             .unwrap();
     }

@@ -28,7 +28,7 @@ fn sys_io() -> SysIO {
     std::io::stderr()
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum TerminalEvent {
     Tick,
     Render,

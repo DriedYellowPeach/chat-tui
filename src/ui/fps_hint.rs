@@ -40,6 +40,13 @@ impl FpsHint {
         ret
     }
 
+    pub fn with_tag(self, tag: UiTag) -> Self {
+        let mut ret = self;
+        ret.tag = Some(tag);
+        ret.meta_data.set_tag(tag, ret.id);
+        ret
+    }
+
     fn get_ui<'a>(&mut self, fps: f64) -> Paragraph<'a> {
         let fps_hint = Paragraph::new(format!("{:.2} fps", fps))
             .block(Block::default().title("fps hint").borders(Borders::ALL));
