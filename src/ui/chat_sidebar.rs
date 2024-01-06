@@ -7,7 +7,7 @@ use std::rc::Rc;
 use crate::{
     action::{Action, MessagesModelAction},
     app::App,
-    model::{ChatSession, RemoteData, SessionRecord},
+    models::{ChatSession, RemoteData, SessionRecord},
     tio::TerminalEvent,
 };
 

@@ -1,6 +1,6 @@
 pub mod action;
 pub mod app;
-pub mod model;
+pub mod models;
 pub mod tio;
 pub mod ui;
 

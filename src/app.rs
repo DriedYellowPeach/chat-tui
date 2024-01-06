@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use crate::{
     action::Action,
-    model::{messages::MessagesModel, sessions::SessionsModel},
+    models::{messages::MessagesModel, sessions::SessionsModel},
     tio::Tio,
     ui::{root_window::RootWindow, UiMetaData, UiTag},
 };

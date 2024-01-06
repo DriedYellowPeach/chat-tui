@@ -1,4 +1,4 @@
-use crate::model::{ChatSession, MsgID, SessionPool};
+use crate::models::{ChatSession, MsgID, SessionPool};
 
 pub enum SessionsModelAction {
     Reload,
