@@ -3,6 +3,7 @@ chat-tui is a terminal client for chating.
 
 ## WIP
 feat: key press hint
+
 ![out](https://github.com/DriedYellowPeach/chat-tui/assets/49219666/273e7067-78d3-4b64-a388-1df0e8b8b583)
 
 
