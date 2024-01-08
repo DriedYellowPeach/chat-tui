@@ -5,16 +5,19 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 
-use std::rc::Rc;
+use std::cell::RefCell;
+use std::rc::{Rc, Weak};
 
-use crate::{action::Action, app::App, models::RemoteData, tio::TerminalEvent};
+use crate::action::Action;
+use crate::app::App;
+use crate::models::RemoteData;
+use crate::tio::TerminalEvent;
 
-use super::{UiId, UiMetaData, UiTag};
+use super::{TerminalEventResult, UiEntity, UiId, UiMetaData, UiTag};
 
 #[derive(Default)]
 pub struct RightSpace {
     id: UiId,
-    tag: Option<UiTag>,
     title: String,
     messages: Vec<String>,
     meta_data: Rc<UiMetaData>,
@@ -22,18 +25,42 @@ pub struct RightSpace {
     pub vertical_scroll: usize,
     pub horizontal_scroll_state: ScrollbarState,
     pub horizontal_scroll: usize,
+    parent: Option<Weak<RefCell<dyn UiEntity>>>,
 }
 
 impl RightSpace {
-    pub fn with_metadata(self, meta: Rc<UiMetaData>) -> Self {
-        let mut ret = self;
-        ret.id = meta.next_id();
+    pub fn new(meta: Rc<UiMetaData>) -> Rc<RefCell<Self>> {
+        let id = meta.next_id();
+        let mut ret = Self {
+            id,
+            ..Default::default()
+        };
         ret.meta_data = meta;
+        let ret = Rc::new(RefCell::new(ret));
+        let _parent = Rc::downgrade(&ret);
+
         ret
     }
 
-    pub fn with_context_model(self, app: &App) -> Self {
-        let mut ret = self;
+    pub fn with_parent(&mut self, parent: Weak<RefCell<dyn UiEntity>>) -> &mut Self {
+        self.parent = Some(parent);
+        self
+    }
+
+    pub fn contains_active_entity(&self) -> bool {
+        let active = self
+            .meta_data
+            .get_active_entity()
+            .unwrap()
+            .upgrade()
+            .unwrap();
+
+        let id = active.borrow().get_id();
+        self.id == id
+    }
+
+    pub fn with_context_model(&mut self, app: &App) -> &mut Self {
+        let ret = self;
         let mut messages = Vec::new();
         let title;
         // let default_rs = Self::default();
@@ -61,13 +88,6 @@ impl RightSpace {
         ret.vertical_scroll_state = ret.vertical_scroll_state.content_length(ret.messages.len());
         ret.horizontal_scroll_state = ret.horizontal_scroll_state.content_length(long_text_len);
 
-        ret
-    }
-
-    pub fn with_tag(self, tag: UiTag) -> Self {
-        let mut ret = self;
-        ret.tag = Some(tag);
-        ret.meta_data.set_tag(tag, ret.id);
         ret
     }
 
@@ -141,8 +161,14 @@ impl RightSpace {
 
         ret
     }
+}
 
-    pub fn draw(&mut self, app: &App, frame: &mut Frame<'_>, area: Rect) {
+impl UiEntity for RightSpace {
+    fn make_blueprints(&self, area: Rect, ui_mgr: &mut super::ui_manager::UiManager) {
+        /* do nothing */
+    }
+
+    fn draw(&mut self, app: &App, frame: &mut Frame, area: Rect) {
         self.update_with_context_model(app);
         let paragraph = self.get_ui_paragraph(app);
         let vertical_scroll = self.get_ui_vertical_scrollbar(app);
@@ -152,35 +178,51 @@ impl RightSpace {
         frame.render_stateful_widget(horizontal_scroll, area, &mut self.horizontal_scroll_state);
     }
 
-    pub fn handle_inner_event(&mut self, event: TerminalEvent, _app: &App) -> Action {
+    fn handle_terminal_event(&mut self, event: TerminalEvent) -> super::TerminalEventResult {
+        let mut ret = TerminalEventResult::NotHandled(event);
         if let TerminalEvent::Key(key) = event {
             match key.code {
                 KeyCode::Char('j') => {
                     self.vertical_scroll = self.vertical_scroll.saturating_add(1);
                     self.vertical_scroll_state =
                         self.vertical_scroll_state.position(self.vertical_scroll);
+                    ret = TerminalEventResult::Handled(Action::Nop);
                 }
                 KeyCode::Char('k') => {
                     self.vertical_scroll = self.vertical_scroll.saturating_sub(1);
                     self.vertical_scroll_state =
                         self.vertical_scroll_state.position(self.vertical_scroll);
+                    ret = TerminalEventResult::Handled(Action::Nop);
                 }
                 KeyCode::Char('h') => {
                     self.horizontal_scroll = self.horizontal_scroll.saturating_sub(1);
                     self.horizontal_scroll_state = self
                         .horizontal_scroll_state
                         .position(self.horizontal_scroll);
+                    ret = TerminalEventResult::Handled(Action::Nop);
                 }
                 KeyCode::Char('l') => {
                     self.horizontal_scroll = self.horizontal_scroll.saturating_add(1);
                     self.horizontal_scroll_state = self
                         .horizontal_scroll_state
                         .position(self.horizontal_scroll);
+                    ret = TerminalEventResult::Handled(Action::Nop);
                 }
                 _ => {}
             }
-        }
+        };
 
-        Action::Nop
+        ret
+    }
+
+    fn get_parent(&self) -> Option<Weak<std::cell::RefCell<dyn UiEntity>>> {
+        match self.parent {
+            Some(ref p) => Some(p.clone()),
+            None => None,
+        }
+    }
+
+    fn get_id(&self) -> UiId {
+        self.id
     }
 }

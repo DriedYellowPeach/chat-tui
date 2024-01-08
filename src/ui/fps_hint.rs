@@ -1,21 +1,24 @@
-use std::{rc::Rc, time::Instant};
-
 use ratatui::layout::Rect;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
 
-use crate::app::App;
+use std::cell::RefCell;
+use std::rc::{Rc, Weak};
+use std::time::Instant;
 
-use super::{UiId, UiMetaData, UiTag};
+use crate::app::App;
+use crate::tio::TerminalEvent;
+
+use super::{TerminalEventResult, UiEntity, UiId, UiMetaData};
 
 pub struct FpsHint {
     id: UiId,
     tick_rate: f64,
     meta_data: Rc<UiMetaData>,
-    tag: Option<UiTag>,
     last_draw_counter: u64,
     last_tick: Instant,
     last_fps: f64,
+    parent: Option<Weak<RefCell<dyn UiEntity>>>,
 }
 
 impl Default for FpsHint {
@@ -24,27 +27,43 @@ impl Default for FpsHint {
             id: 0,
             meta_data: Rc::new(UiMetaData::new()),
             tick_rate: 10.0,
-            tag: None,
             last_draw_counter: 0,
             last_fps: 0.0,
             last_tick: Instant::now(),
+            parent: None,
         }
     }
 }
 
 impl FpsHint {
-    pub fn with_metadata(self, meta: Rc<UiMetaData>) -> Self {
-        let mut ret = self;
-        ret.id = meta.next_id();
+    pub fn new(meta: Rc<UiMetaData>) -> Rc<RefCell<Self>> {
+        let id = meta.next_id();
+        let mut ret = Self {
+            id,
+            ..Default::default()
+        };
         ret.meta_data = meta;
+        let ret = Rc::new(RefCell::new(ret));
+        let _parent = Rc::downgrade(&ret);
+
         ret
     }
 
-    pub fn with_tag(self, tag: UiTag) -> Self {
-        let mut ret = self;
-        ret.tag = Some(tag);
-        ret.meta_data.set_tag(tag, ret.id);
-        ret
+    pub fn with_parent(&mut self, parent: Weak<RefCell<dyn UiEntity>>) -> &mut Self {
+        self.parent = Some(parent);
+        self
+    }
+
+    pub fn contains_active_entity(&self) -> bool {
+        let active = self
+            .meta_data
+            .get_active_entity()
+            .unwrap()
+            .upgrade()
+            .unwrap();
+
+        let id = active.borrow().get_id();
+        self.id == id
     }
 
     fn get_ui<'a>(&mut self, fps: f64) -> Paragraph<'a> {
@@ -73,12 +92,32 @@ impl FpsHint {
 
         fps
     }
+}
 
-    pub fn draw(&mut self, _app: &App, frame: &mut Frame<'_>, area: Rect) {
+impl UiEntity for FpsHint {
+    fn get_parent(&self) -> Option<Weak<RefCell<dyn UiEntity>>> {
+        match self.parent {
+            Some(ref p) => Some(p.clone()),
+            None => None,
+        }
+    }
+
+    fn handle_terminal_event(&mut self, event: TerminalEvent) -> TerminalEventResult {
+        TerminalEventResult::NotHandled(event)
+    }
+
+    fn draw(&mut self, _app: &App, frame: &mut Frame, area: Rect) {
         let (x, y) = (area.right(), area.top());
         let corner = Rect::new(x - 13, y, 12, 3);
         frame.render_widget(Clear, corner);
         let fps = self.count_fps();
         frame.render_widget(self.get_ui(fps), corner);
+    }
+
+    fn make_blueprints(&self, _area: Rect, _ui_mgr: &mut super::ui_manager::UiManager) {
+        /* do nothing */
+    }
+    fn get_id(&self) -> UiId {
+        self.id
     }
 }

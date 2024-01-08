@@ -10,11 +10,15 @@ use ratatui::{
     Frame,
 };
 
-use std::{collections::VecDeque, rc::Rc, time::Instant};
+use std::cell::RefCell;
+use std::collections::VecDeque;
+use std::rc::{Rc, Weak};
+use std::time::Instant;
 
-use crate::{app::App, tio::TerminalEvent};
+use crate::app::App;
+use crate::tio::TerminalEvent;
 
-use super::{UiId, UiMetaData, UiTag};
+use super::{TerminalEventResult, UiEntity, UiId, UiMetaData, UiTag};
 
 pub struct KeyPressHint {
     id: UiId,
@@ -29,6 +33,7 @@ pub struct KeyPressHint {
     last_tick: Instant,
     cached_key: VecDeque<KeyEvent>,
     max_capacity: usize,
+    parent: Option<Weak<RefCell<dyn UiEntity>>>,
 }
 
 impl Default for KeyPressHint {
@@ -42,6 +47,7 @@ impl Default for KeyPressHint {
             last_tick: Instant::now(),
             max_capacity: 10,
             cached_key: VecDeque::with_capacity(10),
+            parent: None,
         }
     }
 }
@@ -49,18 +55,22 @@ impl Default for KeyPressHint {
 // so many boilerplate, I should create some base ui object to do this.
 // this majority of this entity should be the ui object
 impl KeyPressHint {
-    pub fn with_metadata(self, meta: Rc<UiMetaData>) -> Self {
-        let mut ret = self;
-        ret.id = meta.next_id();
+    pub fn new(meta: Rc<UiMetaData>) -> Rc<RefCell<Self>> {
+        let id = meta.next_id();
+        let mut ret = Self {
+            id,
+            ..Default::default()
+        };
         ret.meta_data = meta;
+        let ret = Rc::new(RefCell::new(ret));
+        let _parent = Rc::downgrade(&ret);
+
         ret
     }
 
-    pub fn with_tag(self, tag: UiTag) -> Self {
-        let mut ret = self;
-        ret.tag = Some(tag);
-        ret.meta_data.set_tag(tag, ret.id);
-        ret
+    pub fn with_parent(&mut self, parent: Weak<RefCell<dyn UiEntity>>) -> &mut Self {
+        self.parent = Some(parent);
+        self
     }
 
     fn get_ui<'a>(&mut self, key_code_represent: &'a str) -> Paragraph<'a> {
@@ -70,19 +80,6 @@ impl KeyPressHint {
                 .borders(Borders::ALL),
         );
         keypress_hint
-    }
-
-    pub fn draw(&mut self, _app: &App, frame: &mut Frame, area: Rect) {
-        if self.is_timeout() {
-            self.last_tick = Instant::now();
-            self.cached_key.clear();
-        }
-        let representation = self.get_string_representatin();
-        let hint_len = std::cmp::max(representation.len() as u16, 17);
-        let (x, y) = (area.right(), area.bottom());
-        let right_bottom_corner = Rect::new(x - hint_len - 1, y - 3, hint_len, 3);
-        frame.render_widget(Clear, right_bottom_corner);
-        frame.render_widget(self.get_ui(&representation), right_bottom_corner);
     }
 
     fn add_new_keyevnet(&mut self, event: KeyEvent) {
@@ -101,16 +98,9 @@ impl KeyPressHint {
     fn get_string_representatin(&self) -> String {
         let mut ret = String::new();
         for k in self.cached_key.iter() {
-            // match k.modifiers {
-            //     ModifierKeyCode::LeftShift | ModifierKeyCode::RightShift => ret.push_str("󰘶 "),
-            //     ModifierKeyCode::LeftAlt | ModifierKeyCode::RightAlt => ret.push_str("󰘵 "),
-            //     ModifierKeyCode::LeftControl | ModifierKeyCode::RightControl => ret.push('󰘴'),
-            //     _ => {}
-            // }
-            // k.modifiers == key
             match k.modifiers {
-                KeyModifiers::SHIFT => ret.push_str("󰘶"),
-                KeyModifiers::ALT => ret.push_str("󰘵"),
+                KeyModifiers::SHIFT => ret.push('󰘶'),
+                KeyModifiers::ALT => ret.push('󰘵'),
                 KeyModifiers::CONTROL => ret.push('󰘴'),
                 _ => {}
             }
@@ -122,14 +112,45 @@ impl KeyPressHint {
 
         ret
     }
+}
 
-    pub fn proxy_event(&mut self, event: TerminalEvent, _app: &App) -> TerminalEvent {
+impl UiEntity for KeyPressHint {
+    fn make_blueprints(&self, area: Rect, ui_mgr: &mut super::ui_manager::UiManager) {
+        /* do nothing */
+    }
+
+    fn draw(&mut self, app: &App, frame: &mut Frame, area: Rect) {
+        if self.is_timeout() {
+            self.last_tick = Instant::now();
+            self.cached_key.clear();
+        }
+        let representation = self.get_string_representatin();
+        let hint_len = std::cmp::max(representation.len() as u16, 17);
+        let (x, y) = (area.right(), area.bottom());
+        let right_bottom_corner = Rect::new(x - hint_len - 1, y - 3, hint_len, 3);
+        frame.render_widget(Clear, right_bottom_corner);
+        frame.render_widget(self.get_ui(&representation), right_bottom_corner);
+    }
+
+    fn get_parent(&self) -> Option<Weak<RefCell<dyn UiEntity>>> {
+        match self.parent {
+            Some(ref p) => Some(p.clone()),
+            None => None,
+        }
+    }
+
+    fn handle_terminal_event(&mut self, event: TerminalEvent) -> super::TerminalEventResult {
+        let intact = TerminalEventResult::NotHandled(event);
         let TerminalEvent::Key(k_event) = event else {
-            return event;
+            return intact;
         };
 
         self.add_new_keyevnet(k_event);
 
-        event
+        intact
+    }
+
+    fn get_id(&self) -> UiId {
+        self.id
     }
 }

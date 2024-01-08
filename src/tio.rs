@@ -36,6 +36,7 @@ pub enum TerminalEvent {
     Mouse(MouseEvent),
     // (cols, rows), or say (width, height)
     Resize(u16, u16),
+    // Ingore represents those unknown event
     Ignore,
     Error,
 }
