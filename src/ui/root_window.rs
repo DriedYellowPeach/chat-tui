@@ -11,7 +11,7 @@ use crate::{
 
 use super::{
     chat_sidebar::LeftSessionList, fps_hint::FpsHint, keypress_hint::KeyPressHint,
-    message_viewer::RightSpace, UiId, UiMetaData, UiTag,
+    message_viewer::RightSpace, ui_manager::UiManager, UiEntity, UiId, UiMetaData, UiTag,
 };
 
 #[derive(Default)]
@@ -94,21 +94,32 @@ impl RootWindow {
             }
         }
     }
+}
 
-    pub fn draw(&mut self, app: &mut App, tio: &mut Tio) {
-        // TODO: Error handling
-        let area = tio.canvas.size().unwrap();
+impl UiEntity for RootWindow {
+    fn make_blueprints<'a, 'b>(&'a self, area: Rect, ui_mgr: &mut UiManager<'b>, layer: isize)
+    where
+        'a: 'b,
+    {
+        let layer1 = layer + 1;
+        let layer2 = layer + 2;
+
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
             .split(area);
-        tio.canvas
-            .draw(|f| {
-                self.left_session_list.draw(app, f, chunks[0]);
-                self.right_space.draw(app, f, chunks[1]);
-                self.fps_hint.draw(app, f, f.size());
-                self.key_press_hint.draw(app, f, f.size());
-            })
-            .unwrap();
+
+        ui_mgr.add_new_blueprint(&self.left_session_list, chunks[0], layer1);
+        self.left_session_list
+            .make_blueprints(chunks[0], ui_mgr, layer1);
+
+        ui_mgr.add_new_blueprint(&self.right_space, chunks[1], layer1);
+        self.right_space.make_blueprints(chunks[1], ui_mgr, layer1);
+
+        ui_mgr.add_new_blueprint(&self.fps_hint, area, layer2);
+        self.fps_hint.make_blueprints(area, ui_mgr, layer2);
+
+        ui_mgr.add_new_blueprint(&self.key_press_hint, area, layer2);
+        self.key_press_hint.make_blueprints(area, ui_mgr, layer2);
     }
 }

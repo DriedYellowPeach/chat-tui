@@ -7,7 +7,7 @@ use crate::{
     action::Action,
     models::{messages::MessagesModel, sessions::SessionsModel},
     tio::Tio,
-    ui::{root_window::RootWindow, UiMetaData, UiTag},
+    ui::{root_window::RootWindow, ui_manager::UiManager, UiEntity, UiMetaData, UiTag},
 };
 
 pub struct App {
@@ -76,9 +76,15 @@ impl App {
 
             // draw ui here
             if ui_tree.meta_data.get_should_draw() {
-                ui_tree.draw(self, &mut tio);
-                ui_tree.meta_data.increment_draw_counter();
+                tio.canvas
+                    .draw(|f| {
+                        let mut ui_mgr = UiManager::new();
+                        ui_tree.make_blueprints(f.size(), &mut ui_mgr, 0);
+                        ui_mgr.draw(self, f);
+                    })
+                    .unwrap();
                 ui_tree.meta_data.set_should_draw(false);
+                ui_tree.meta_data.increment_draw_counter();
             }
 
             if self.shoud_quit {

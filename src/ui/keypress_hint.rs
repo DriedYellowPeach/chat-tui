@@ -10,11 +10,17 @@ use ratatui::{
     Frame,
 };
 
+use std::cell::RefCell;
 use std::{collections::VecDeque, rc::Rc, time::Instant};
 
 use crate::{app::App, tio::TerminalEvent};
 
-use super::{UiId, UiMetaData, UiTag};
+use super::{UiEntity, UiId, UiMetaData, UiTag};
+
+struct InternalState {
+    last_tick: Instant,
+    cached_key: VecDeque<KeyEvent>,
+}
 
 pub struct KeyPressHint {
     id: UiId,
@@ -26,9 +32,8 @@ pub struct KeyPressHint {
     fresh_rate: f64,
     // should also be able to caculate the current length, this is used to allocate Clear area for
     // widget
-    last_tick: Instant,
-    cached_key: VecDeque<KeyEvent>,
     max_capacity: usize,
+    internal_state: RefCell<InternalState>,
 }
 
 impl Default for KeyPressHint {
@@ -39,9 +44,11 @@ impl Default for KeyPressHint {
             meta_data: Rc::new(UiMetaData::new()),
             title: String::from("Key Press Hint"),
             fresh_rate: 0.25,
-            last_tick: Instant::now(),
             max_capacity: 10,
-            cached_key: VecDeque::with_capacity(10),
+            internal_state: RefCell::new(InternalState {
+                last_tick: Instant::now(),
+                cached_key: VecDeque::with_capacity(10),
+            }),
         }
     }
 }
@@ -63,7 +70,7 @@ impl KeyPressHint {
         ret
     }
 
-    fn get_ui<'a>(&mut self, key_code_represent: &'a str) -> Paragraph<'a> {
+    fn get_ui<'a>(&self, key_code_represent: &'a str) -> Paragraph<'a> {
         let keypress_hint = Paragraph::new(key_code_represent).block(
             Block::default()
                 .title(self.title.clone())
@@ -72,42 +79,28 @@ impl KeyPressHint {
         keypress_hint
     }
 
-    pub fn draw(&mut self, _app: &App, frame: &mut Frame, area: Rect) {
-        if self.is_timeout() {
-            self.last_tick = Instant::now();
-            self.cached_key.clear();
-        }
-        let representation = self.get_string_representatin();
-        let hint_len = std::cmp::max(representation.len() as u16, 17);
-        let (x, y) = (area.right(), area.bottom());
-        let right_bottom_corner = Rect::new(x - hint_len - 1, y - 3, hint_len, 3);
-        frame.render_widget(Clear, right_bottom_corner);
-        frame.render_widget(self.get_ui(&representation), right_bottom_corner);
-    }
-
-    fn add_new_keyevnet(&mut self, event: KeyEvent) {
-        if self.cached_key.len() == self.max_capacity {
-            self.cached_key.pop_front();
-            self.cached_key.push_back(event);
+    fn add_new_keyevnet(&self, event: KeyEvent) {
+        let mut internal = self.internal_state.borrow_mut();
+        if internal.cached_key.len() == self.max_capacity {
+            internal.cached_key.pop_front();
+            internal.cached_key.push_back(event);
         } else {
-            self.cached_key.push_back(event);
+            internal.cached_key.push_back(event);
         }
     }
 
     fn is_timeout(&self) -> bool {
-        self.last_tick.elapsed().as_secs_f64() > 1.0 / self.fresh_rate
+        self.internal_state
+            .borrow()
+            .last_tick
+            .elapsed()
+            .as_secs_f64()
+            > 1.0 / self.fresh_rate
     }
 
     fn get_string_representatin(&self) -> String {
         let mut ret = String::new();
-        for k in self.cached_key.iter() {
-            // match k.modifiers {
-            //     ModifierKeyCode::LeftShift | ModifierKeyCode::RightShift => ret.push_str("󰘶 "),
-            //     ModifierKeyCode::LeftAlt | ModifierKeyCode::RightAlt => ret.push_str("󰘵 "),
-            //     ModifierKeyCode::LeftControl | ModifierKeyCode::RightControl => ret.push('󰘴'),
-            //     _ => {}
-            // }
-            // k.modifiers == key
+        for k in self.internal_state.borrow().cached_key.iter() {
             match k.modifiers {
                 KeyModifiers::SHIFT => ret.push_str("󰘶"),
                 KeyModifiers::ALT => ret.push_str("󰘵"),
@@ -123,7 +116,7 @@ impl KeyPressHint {
         ret
     }
 
-    pub fn proxy_event(&mut self, event: TerminalEvent, _app: &App) -> TerminalEvent {
+    pub fn proxy_event(&self, event: TerminalEvent, _app: &App) -> TerminalEvent {
         let TerminalEvent::Key(k_event) = event else {
             return event;
         };
@@ -131,5 +124,21 @@ impl KeyPressHint {
         self.add_new_keyevnet(k_event);
 
         event
+    }
+}
+
+impl UiEntity for KeyPressHint {
+    fn draw(&self, _app: &App, frame: &mut Frame, area: Rect) {
+        if self.is_timeout() {
+            let mut internal = self.internal_state.borrow_mut();
+            internal.last_tick = Instant::now();
+            internal.cached_key.clear();
+        }
+        let representation = self.get_string_representatin();
+        let hint_len = std::cmp::max(representation.len() as u16, 17);
+        let (x, y) = (area.right(), area.bottom());
+        let right_bottom_corner = Rect::new(x - hint_len - 1, y - 3, hint_len, 3);
+        frame.render_widget(Clear, right_bottom_corner);
+        frame.render_widget(self.get_ui(&representation), right_bottom_corner);
     }
 }

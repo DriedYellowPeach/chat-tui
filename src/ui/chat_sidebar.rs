@@ -2,6 +2,7 @@ use crossterm::event::KeyCode;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState};
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
@@ -11,7 +12,7 @@ use crate::{
     tio::TerminalEvent,
 };
 
-use super::{UiId, UiMetaData, UiTag};
+use super::{UiEntity, UiId, UiMetaData, UiTag};
 
 struct Content {
     chat_session: ChatSession,
@@ -47,8 +48,8 @@ impl From<&SessionRecord> for Content {
 pub struct LeftSessionList {
     id: UiId,
     tag: Option<UiTag>,
-    state: ListState,
-    items: Vec<Content>,
+    state: RefCell<ListState>,
+    items: RefCell<Vec<Content>>,
     meta_data: Rc<UiMetaData>,
 }
 
@@ -80,7 +81,7 @@ impl LeftSessionList {
             }
         }
 
-        ret.items = items;
+        ret.items = RefCell::new(items);
         ret
     }
 
@@ -91,7 +92,7 @@ impl LeftSessionList {
         ret
     }
 
-    fn update_with_context_model(&mut self, app: &App) {
+    fn update_with_context_model(&self, app: &App) {
         let mut items = Vec::new();
         match app.sessions_model.get_model_data() {
             RemoteData::Success(data) => {
@@ -104,14 +105,15 @@ impl LeftSessionList {
                 assert_eq!(items.len(), 0);
             }
         }
-        self.items = items;
+        *self.items.borrow_mut() = items;
     }
 
-    fn get_ui<'a>(&mut self, app: &App, area: Rect) -> SessionListUI<'a> {
+    fn get_ui<'a>(&self, app: &App, area: Rect) -> SessionListUI<'a> {
         self.update_with_context_model(app);
         let mut title = "Chats";
         let mut items: Vec<ListItem> = self
             .items
+            .borrow()
             .iter()
             .map(|content| {
                 let lines = vec![
@@ -149,17 +151,17 @@ impl LeftSessionList {
         )
     }
 
-    pub fn draw(&mut self, app: &App, frame: &mut Frame, area: Rect) {
-        let ui = self.get_ui(app, area);
-        match ui {
-            SessionListUI::Already(list) => {
-                frame.render_stateful_widget(list, area, &mut self.state);
-            }
-            SessionListUI::Waiting(list) => {
-                frame.render_stateful_widget(list, area, &mut self.state)
-            }
-        }
-    }
+    // pub fn draw(&mut self, app: &App, frame: &mut Frame, area: Rect) {
+    //     let ui = self.get_ui(app, area);
+    //     match ui {
+    //         SessionListUI::Already(list) => {
+    //             frame.render_stateful_widget(list, area, self.state.borrow_mut());
+    //         }
+    //         SessionListUI::Waiting(list) => {
+    //             frame.render_stateful_widget(list, area, &mut self.state)
+    //         }
+    //     }
+    // }
 
     pub fn handle_inner_event(&mut self, event: TerminalEvent, app: &App) -> Action {
         match event {
@@ -172,12 +174,12 @@ impl LeftSessionList {
                 Action::Nop
             }
             TerminalEvent::Key(k) if k.code == KeyCode::Enter => {
-                if let Some(offset) = self.state.selected() {
+                if let Some(offset) = self.state.borrow().selected() {
                     // TODO: error handling
                     let message_viewer_id = self.meta_data.get_id(&UiTag::MessageViewer).unwrap();
                     self.meta_data.set_active(message_viewer_id);
                     Action::MessagesModel(MessagesModelAction::SetBind(
-                        self.items[offset].chat_session.clone(),
+                        self.items.borrow()[offset].chat_session.clone(),
                     ))
                 } else {
                     Action::Nop
@@ -188,9 +190,9 @@ impl LeftSessionList {
     }
 
     fn next(&mut self) {
-        let i = match self.state.selected() {
+        let i = match self.state.borrow().selected() {
             Some(i) => {
-                if i >= self.items.len() - 1 {
+                if i >= self.items.borrow().len() - 1 {
                     0
                 } else {
                     i + 1
@@ -198,24 +200,38 @@ impl LeftSessionList {
             }
             None => 0,
         };
-        self.state.select(Some(i));
+        self.state.borrow_mut().select(Some(i));
     }
 
     fn prev(&mut self) {
-        let i = match self.state.selected() {
+        let i = match self.state.borrow().selected() {
             Some(i) => {
                 if i == 0 {
-                    self.items.len() - 1
+                    self.items.borrow().len() - 1
                 } else {
                     i - 1
                 }
             }
             None => 0,
         };
-        self.state.select(Some(i));
+        self.state.borrow_mut().select(Some(i));
     }
 
     fn unselect(&mut self) {
-        self.state.select(None);
+        self.state.borrow_mut().select(None);
+    }
+}
+
+impl UiEntity for LeftSessionList {
+    fn draw(&self, app: &App, frame: &mut Frame, area: Rect) {
+        let ui = self.get_ui(app, area);
+        match ui {
+            SessionListUI::Already(list) => {
+                frame.render_stateful_widget(list, area, &mut self.state.borrow_mut());
+            }
+            SessionListUI::Waiting(list) => {
+                frame.render_stateful_widget(list, area, &mut self.state.borrow_mut())
+            }
+        }
     }
 }
