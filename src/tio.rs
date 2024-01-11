@@ -9,17 +9,13 @@
 /// - Writing Output to Terminal, aka rendering:
 ///     - Here, we only used `ratatui::terminal::draw` to render UI in the terminal.
 use color_eyre::eyre::Result;
-use crossterm::{
-    cursor,
-    event::{Event as RawEvent, KeyEvent, MouseEvent},
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen},
-};
+use crossterm::cursor;
+use crossterm::event::{Event as RawEvent, KeyEvent, MouseEvent};
+use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use futures::{future::FutureExt, StreamExt};
 use ratatui::backend::CrosstermBackend as Backend;
-use tokio::{
-    sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
-    task::JoinHandle,
-};
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
 // TODO: Use stderr or stdout? this should be configable
@@ -175,7 +171,6 @@ mod tests {
         use super::*;
         use crossterm::event::KeyCode;
         use ratatui::widgets::{Block, Borders, Paragraph};
-        // let mut tio = Tio::new(4.0, 60.0);
         let mut tio = Tio::new(4.0, 60.0).unwrap();
         tio.enter().unwrap();
         let mut text = "Press some Key!!!".to_string();

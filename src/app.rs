@@ -3,11 +3,11 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use std::rc::Rc;
 
-use crate::{
-    action::Action,
-    models::{messages::MessagesModel, sessions::SessionsModel},
-    tio::Tio,
-    ui::{root_window::RootWindow, ui_manager::UiManager, UiEntity, UiMetaData, UiTag},
+use crate::action::Action;
+use crate::models::{messages::MessagesModel, sessions::SessionsModel, state::StateModel};
+use crate::tio::Tio;
+use crate::ui::{
+    blueprints::UiBlueprints, root_window::RootWindow, TerminalEventResult, UiEntity, UiMetaData,
 };
 
 pub struct App {
@@ -16,6 +16,7 @@ pub struct App {
     action_rx: UnboundedReceiver<Action>,
     pub sessions_model: SessionsModel,
     pub messages_model: MessagesModel,
+    pub state_model: StateModel,
 }
 
 impl App {
@@ -25,6 +26,7 @@ impl App {
         Ok(Self {
             sessions_model: SessionsModel::new(action_tx.clone()),
             messages_model: MessagesModel::new(action_tx.clone()),
+            state_model: StateModel::new(),
             shoud_quit: false,
             action_tx,
             action_rx,
@@ -42,6 +44,9 @@ impl App {
             Action::MessagesModel(act) => {
                 self.messages_model.handle_action(act);
             }
+            Action::StateModel(act) => {
+                self.state_model.handle_action(act);
+            }
             Action::MultiAction(actions) => {
                 for action in actions {
                     self.handle_action(action);
@@ -53,19 +58,24 @@ impl App {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        let mut tio = Tio::new(4.0, 30.0)?;
+        let mut tio = Tio::new(4.0, 60.0)?;
         tio.enter()?;
 
         // handle event first, event should be dispatch to UI skeleton
         let meta = Rc::new(UiMetaData::new());
-        let mut ui_tree = RootWindow::default()
+        let mut root_window = RootWindow::default()
             .with_metadata(meta)
-            .with_context_model(self)
-            .with_tag(UiTag::InputHint);
+            .with_context_model(self);
 
         loop {
             if let Some(evt) = tio.next_event().await {
-                let action = ui_tree.handle_base_event(evt, self);
+                let action = match root_window.handle_terminal_event(evt, self) {
+                    TerminalEventResult::Handled(act) => act,
+                    TerminalEventResult::NotHandled(_evt) => {
+                        // TODO: log
+                        Action::Nop
+                    }
+                };
                 self.action_tx.send(action)?;
             }
 
@@ -75,16 +85,16 @@ impl App {
             }
 
             // draw ui here
-            if ui_tree.meta_data.get_should_draw() {
+            if root_window.meta_data.get_should_draw() {
                 tio.canvas
                     .draw(|f| {
-                        let mut ui_mgr = UiManager::new();
-                        ui_tree.make_blueprints(f.size(), &mut ui_mgr, 0);
-                        ui_mgr.draw(self, f);
+                        let mut ui_blueprints = UiBlueprints::new();
+                        root_window.make_blueprints(f.size(), &mut ui_blueprints, 0);
+                        ui_blueprints.draw(self, f);
                     })
                     .unwrap();
-                ui_tree.meta_data.set_should_draw(false);
-                ui_tree.meta_data.increment_draw_counter();
+                root_window.meta_data.set_should_draw(false);
+                root_window.meta_data.increment_draw_counter();
             }
 
             if self.shoud_quit {

@@ -3,6 +3,7 @@
 ///
 pub mod messages;
 pub mod sessions;
+pub mod state;
 
 pub enum UserState {
     Online,

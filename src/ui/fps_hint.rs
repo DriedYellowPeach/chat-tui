@@ -3,7 +3,8 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
 
 use std::cell::RefCell;
-use std::{rc::Rc, time::Instant};
+use std::rc::Rc;
+use std::time::Instant;
 
 use crate::app::App;
 
@@ -89,14 +90,6 @@ impl FpsHint {
 
         fps
     }
-
-    // pub fn draw(&self, _app: &App, frame: &mut Frame<'_>, area: Rect) {
-    //     let (x, y) = (area.right(), area.top());
-    //     let corner = Rect::new(x - 13, y, 12, 3);
-    //     frame.render_widget(Clear, corner);
-    //     let fps = self.count_fps();
-    //     frame.render_widget(self.get_ui(fps), corner);
-    // }
 }
 
 impl UiEntity for FpsHint {

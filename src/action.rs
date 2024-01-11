@@ -1,4 +1,4 @@
-use crate::models::{ChatSession, MsgID, SessionPool};
+use crate::models::{state::StateModel, ChatSession, MsgID, SessionPool};
 
 pub enum SessionsModelAction {
     Reload,
@@ -16,9 +16,15 @@ pub enum MessagesModelAction {
     SetMessages(Vec<MsgID>),
 }
 
+pub enum StateModelAction {
+    NextState,
+    SetActive(StateModel),
+}
+
 pub enum Action {
     SessionsModel(SessionsModelAction),
     MessagesModel(MessagesModelAction),
+    StateModel(StateModelAction),
     Nop,
     Quit,
     MultiAction(Vec<Action>),

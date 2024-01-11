@@ -8,13 +8,13 @@ use crate::action::Action;
 use crate::app::App;
 use crate::tio::TerminalEvent;
 
+pub mod blueprints;
 pub mod chat_sidebar;
 pub mod fps_hint;
 pub mod input_field;
 pub mod keypress_hint;
 pub mod message_viewer;
 pub mod root_window;
-pub mod ui_manager;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
 pub enum UiTag {
@@ -100,27 +100,24 @@ pub enum TerminalEventResult {
 }
 
 pub trait UiEntity {
-    // fn with_context_model(self, app: &App) -> Self;
-    // fn with_meta_data(self, meta: Rc<UiMetaData>) -> Self;
-    fn handle_terminal_event(&mut self, event: TerminalEvent) -> TerminalEventResult {
+    fn handle_terminal_event(&mut self, event: TerminalEvent, app: &App) -> TerminalEventResult {
         TerminalEventResult::NotHandled(event)
     }
+
     // update more details in blueprints, the final blueprints will be used to draw the entire UI
     fn make_blueprints<'a, 'b>(
         &'a self,
         _area: Rect,
-        _ui_mgr: &mut ui_manager::UiManager<'b>,
-        layer: isize,
+        _ui_mgr: &mut blueprints::UiBlueprints<'b>,
+        _layer: isize,
     ) where
         'a: 'b,
     {
         /* do nothing */
     }
+
     // draw will be used by the final blueprints, to draw the UiEntity objects in specific order
     fn draw(&self, app: &App, frame: &mut Frame, area: Rect) {
         /* do noting */
     }
-    // get parent is used in event-hanlding, if current active can't handle such event, it should pass it
-
-    // fn toggle_highlight(&mut self) {}
 }

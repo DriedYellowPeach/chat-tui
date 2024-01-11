@@ -5,14 +5,12 @@ use ratatui::widgets::{Block, Borders, List, ListItem, ListState};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::{
-    action::{Action, MessagesModelAction},
-    app::App,
-    models::{ChatSession, RemoteData, SessionRecord},
-    tio::TerminalEvent,
-};
+use crate::action::{Action, MessagesModelAction, StateModelAction};
+use crate::app::App;
+use crate::models::{state::StateModel, ChatSession, RemoteData, SessionRecord};
+use crate::tio::TerminalEvent;
 
-use super::{UiEntity, UiId, UiMetaData, UiTag};
+use super::{TerminalEventResult, UiEntity, UiId, UiMetaData, UiTag};
 
 struct Content {
     chat_session: ChatSession,
@@ -151,48 +149,10 @@ impl LeftSessionList {
         )
     }
 
-    // pub fn draw(&mut self, app: &App, frame: &mut Frame, area: Rect) {
-    //     let ui = self.get_ui(app, area);
-    //     match ui {
-    //         SessionListUI::Already(list) => {
-    //             frame.render_stateful_widget(list, area, self.state.borrow_mut());
-    //         }
-    //         SessionListUI::Waiting(list) => {
-    //             frame.render_stateful_widget(list, area, &mut self.state)
-    //         }
-    //     }
-    // }
-
-    pub fn handle_inner_event(&mut self, event: TerminalEvent, app: &App) -> Action {
-        match event {
-            TerminalEvent::Key(k) if k.code == KeyCode::Char('j') => {
-                self.next();
-                Action::Nop
-            }
-            TerminalEvent::Key(k) if k.code == KeyCode::Char('k') => {
-                self.prev();
-                Action::Nop
-            }
-            TerminalEvent::Key(k) if k.code == KeyCode::Enter => {
-                if let Some(offset) = self.state.borrow().selected() {
-                    // TODO: error handling
-                    let message_viewer_id = self.meta_data.get_id(&UiTag::MessageViewer).unwrap();
-                    self.meta_data.set_active(message_viewer_id);
-                    Action::MessagesModel(MessagesModelAction::SetBind(
-                        self.items.borrow()[offset].chat_session.clone(),
-                    ))
-                } else {
-                    Action::Nop
-                }
-            }
-            _ => Action::Nop,
-        }
-    }
-
     fn next(&mut self) {
         let i = match self.state.borrow().selected() {
             Some(i) => {
-                if i >= self.items.borrow().len() - 1 {
+                if i + 1 >= self.items.borrow().len() {
                     0
                 } else {
                     i + 1
@@ -204,6 +164,11 @@ impl LeftSessionList {
     }
 
     fn prev(&mut self) {
+        if self.items.borrow().len() == 0 {
+            // no need to go prev
+            return;
+        }
+
         let i = match self.state.borrow().selected() {
             Some(i) => {
                 if i == 0 {
@@ -232,6 +197,35 @@ impl UiEntity for LeftSessionList {
             SessionListUI::Waiting(list) => {
                 frame.render_stateful_widget(list, area, &mut self.state.borrow_mut())
             }
+        }
+    }
+
+    fn handle_terminal_event(&mut self, event: TerminalEvent, _app: &App) -> TerminalEventResult {
+        match event {
+            TerminalEvent::Key(k) if k.code == KeyCode::Char('j') => {
+                self.next();
+                TerminalEventResult::Handled(Action::Nop)
+            }
+            TerminalEvent::Key(k) if k.code == KeyCode::Char('k') => {
+                self.prev();
+                TerminalEventResult::Handled(Action::Nop)
+            }
+            TerminalEvent::Key(k) if k.code == KeyCode::Enter => {
+                if let Some(offset) = self.state.borrow().selected() {
+                    // TODO: error handling
+                    // let message_viewer_id = self.meta_data.get_id(&UiTag::MessageViewer).unwrap();
+                    // self.meta_data.set_active(message_viewer_id);
+                    TerminalEventResult::Handled(Action::MultiAction(vec![
+                        Action::StateModel(StateModelAction::SetActive(StateModel::Messages)),
+                        Action::MessagesModel(MessagesModelAction::SetBind(
+                            self.items.borrow()[offset].chat_session.clone(),
+                        )),
+                    ]))
+                } else {
+                    TerminalEventResult::Handled(Action::Nop)
+                }
+            }
+            _ => TerminalEventResult::NotHandled(event),
         }
     }
 }

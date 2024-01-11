@@ -1,16 +1,19 @@
 use crossterm::event::KeyCode;
-use ratatui::{
-    prelude::*,
-    text::Line,
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+use ratatui::prelude::*;
+use ratatui::text::Line;
+use ratatui::widgets::{
+    Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
 };
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::{action::Action, app::App, models::RemoteData, tio::TerminalEvent};
+use crate::action::Action;
+use crate::app::App;
+use crate::models::RemoteData;
+use crate::tio::TerminalEvent;
 
-use super::{UiEntity, UiId, UiMetaData, UiTag};
+use super::{TerminalEventResult, UiEntity, UiId, UiMetaData, UiTag};
 
 #[derive(Default)]
 struct InternalState {
@@ -160,21 +163,32 @@ impl RightSpace {
 
         ret
     }
+}
 
-    // pub fn draw(&mut self, app: &App, frame: &mut Frame<'_>, area: Rect) {
-    //     self.update_with_context_model(app);
-    //     let paragraph = self.get_ui_paragraph(app);
-    //     let vertical_scroll = self.get_ui_vertical_scrollbar(app);
-    //     let horizontal_scroll = self.get_ui_horizontal_scrollbar(app);
-    //     frame.render_widget(paragraph, area);
-    //     frame.render_stateful_widget(vertical_scroll, area, &mut self.vertical_scroll_state);
-    //     frame.render_stateful_widget(horizontal_scroll, area, &mut self.horizontal_scroll_state);
-    // }
+impl UiEntity for RightSpace {
+    fn draw(&self, app: &App, frame: &mut Frame, area: Rect) {
+        self.update_with_context_model(app);
+        let paragraph = self.get_ui_paragraph(app);
+        let vertical_scroll = self.get_ui_vertical_scrollbar(app);
+        let horizontal_scroll = self.get_ui_horizontal_scrollbar(app);
+        frame.render_widget(paragraph, area);
+        frame.render_stateful_widget(
+            vertical_scroll,
+            area,
+            &mut self.internal_state.borrow_mut().vertical_scroll_state,
+        );
+        frame.render_stateful_widget(
+            horizontal_scroll,
+            area,
+            &mut self.internal_state.borrow_mut().horizontal_scroll_state,
+        );
+    }
 
-    pub fn handle_inner_event(&mut self, event: TerminalEvent, _app: &App) -> Action {
+    fn handle_terminal_event(&mut self, event: TerminalEvent, _app: &App) -> TerminalEventResult {
         let mut internal = self.internal_state.borrow_mut();
-        if let TerminalEvent::Key(key) = event {
-            match key.code {
+        let mut ret = TerminalEventResult::Handled(Action::Nop);
+        match event {
+            TerminalEvent::Key(key) => match key.code {
                 KeyCode::Char('j') => {
                     internal.vertical_scroll = internal.vertical_scroll.saturating_add(1);
                     internal.vertical_scroll_state = internal
@@ -199,30 +213,11 @@ impl RightSpace {
                         .horizontal_scroll_state
                         .position(internal.horizontal_scroll);
                 }
-                _ => {}
-            }
+                _ => ret = TerminalEventResult::NotHandled(event),
+            },
+            _ => ret = TerminalEventResult::NotHandled(event),
         }
 
-        Action::Nop
-    }
-}
-
-impl UiEntity for RightSpace {
-    fn draw(&self, app: &App, frame: &mut Frame, area: Rect) {
-        self.update_with_context_model(app);
-        let paragraph = self.get_ui_paragraph(app);
-        let vertical_scroll = self.get_ui_vertical_scrollbar(app);
-        let horizontal_scroll = self.get_ui_horizontal_scrollbar(app);
-        frame.render_widget(paragraph, area);
-        frame.render_stateful_widget(
-            vertical_scroll,
-            area,
-            &mut self.internal_state.borrow_mut().vertical_scroll_state,
-        );
-        frame.render_stateful_widget(
-            horizontal_scroll,
-            area,
-            &mut self.internal_state.borrow_mut().horizontal_scroll_state,
-        );
+        ret
     }
 }

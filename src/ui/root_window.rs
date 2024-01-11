@@ -3,15 +3,15 @@ use ratatui::prelude::*;
 
 use std::rc::Rc;
 
-use crate::{
-    action::Action,
-    app::App,
-    tio::{TerminalEvent, Tio},
-};
+use crate::action::{Action, StateModelAction};
+use crate::app::App;
+use crate::models::state::StateModel;
+use crate::tio::{TerminalEvent, Tio};
 
 use super::{
-    chat_sidebar::LeftSessionList, fps_hint::FpsHint, keypress_hint::KeyPressHint,
-    message_viewer::RightSpace, ui_manager::UiManager, UiEntity, UiId, UiMetaData, UiTag,
+    blueprints::UiBlueprints, chat_sidebar::LeftSessionList, fps_hint::FpsHint,
+    keypress_hint::KeyPressHint, message_viewer::RightSpace, TerminalEventResult, UiEntity, UiId,
+    UiMetaData, UiTag,
 };
 
 #[derive(Default)]
@@ -58,46 +58,10 @@ impl RootWindow {
         ret.meta_data.set_tag(tag, ret.id);
         ret
     }
-
-    pub fn handle_base_event(&mut self, event: TerminalEvent, app: &App) -> Action {
-        let event = self.key_press_hint.proxy_event(event, app);
-        // q to quit, + to add fps, - to reduce fps
-        match event {
-            TerminalEvent::Error
-            | TerminalEvent::Ignore
-            | TerminalEvent::Tick
-            | TerminalEvent::Mouse(_)
-            | TerminalEvent::Resize(_, _) => Action::Nop,
-            TerminalEvent::Render => {
-                self.meta_data.set_should_draw(true);
-                Action::Nop
-            }
-            TerminalEvent::Key(k) if k.code == KeyCode::Char('q') => Action::Quit,
-            // TODO: this event->action map should be put into in the sub ui node left-session-list
-            TerminalEvent::Key(k) if k.code == KeyCode::Tab => {
-                // TODO: error handling
-                self.meta_data.next_active();
-                Action::Nop
-            }
-            _ => {
-                let active_id = self.meta_data.get_active();
-                let left_id = self.meta_data.get_id(&UiTag::ChatSidebar).unwrap();
-                let right_id = self.meta_data.get_id(&UiTag::MessageViewer).unwrap();
-                if active_id == left_id {
-                    self.left_session_list.handle_inner_event(event, app)
-                } else if active_id == right_id {
-                    self.right_space.handle_inner_event(event, app)
-                } else {
-                    // do nothing
-                    Action::Nop
-                }
-            }
-        }
-    }
 }
 
 impl UiEntity for RootWindow {
-    fn make_blueprints<'a, 'b>(&'a self, area: Rect, ui_mgr: &mut UiManager<'b>, layer: isize)
+    fn make_blueprints<'a, 'b>(&'a self, area: Rect, ui_mgr: &mut UiBlueprints<'b>, layer: isize)
     where
         'a: 'b,
     {
@@ -121,5 +85,47 @@ impl UiEntity for RootWindow {
 
         ui_mgr.add_new_blueprint(&self.key_press_hint, area, layer2);
         self.key_press_hint.make_blueprints(area, ui_mgr, layer2);
+    }
+
+    fn handle_terminal_event(&mut self, event: TerminalEvent, app: &App) -> TerminalEventResult {
+        let event = self.key_press_hint.handle_terminal_event(event, app);
+        let proxied_evt = match event {
+            TerminalEventResult::NotHandled(evt) => evt,
+            TerminalEventResult::Handled(act) => return TerminalEventResult::Handled(act),
+        };
+
+        let sub_ent_evt = match app.state_model {
+            StateModel::Chats => self
+                .left_session_list
+                .handle_terminal_event(proxied_evt, app),
+            StateModel::Messages => self.right_space.handle_terminal_event(proxied_evt, app),
+            StateModel::FPS => self.fps_hint.handle_terminal_event(proxied_evt, app),
+        };
+        // there must be best way to not depackage
+        let sub_ent_leftover = match sub_ent_evt {
+            TerminalEventResult::NotHandled(evt) => evt,
+            TerminalEventResult::Handled(act) => return TerminalEventResult::Handled(act),
+        };
+
+        match sub_ent_leftover {
+            TerminalEvent::Error
+            | TerminalEvent::Ignore
+            | TerminalEvent::Tick
+            | TerminalEvent::Mouse(_)
+            | TerminalEvent::Resize(_, _) => TerminalEventResult::Handled(Action::Nop),
+            TerminalEvent::Render => {
+                self.meta_data.set_should_draw(true);
+                TerminalEventResult::Handled(Action::Nop)
+            }
+            TerminalEvent::Key(k) if k.code == KeyCode::Char('q') => {
+                TerminalEventResult::Handled(Action::Quit)
+            }
+            // TODO: this event->action map should be put into in the sub ui node left-session-list
+            TerminalEvent::Key(k) if k.code == KeyCode::Tab => {
+                // TODO: error handling
+                TerminalEventResult::Handled(Action::StateModel(StateModelAction::NextState))
+            }
+            _ => TerminalEventResult::Handled(Action::Nop),
+        }
     }
 }

@@ -4,9 +4,8 @@ use ratatui::Frame;
 use std::collections::BinaryHeap;
 
 use crate::app::App;
-use crate::tio::Tio;
 
-use super::{root_window::RootWindow, UiEntity};
+use super::UiEntity;
 
 struct Blueprint<'a> {
     entity: &'a dyn UiEntity,
@@ -36,11 +35,11 @@ impl<'a> PartialEq for Blueprint<'a> {
     }
 }
 
-pub struct UiManager<'a> {
+pub struct UiBlueprints<'a> {
     blueprints: BinaryHeap<Blueprint<'a>>,
 }
 
-impl<'a> UiManager<'a> {
+impl<'a> UiBlueprints<'a> {
     pub fn new() -> Self {
         Self {
             blueprints: BinaryHeap::new(),
@@ -70,7 +69,7 @@ impl<'a> UiManager<'a> {
     }
 }
 
-impl<'a> Default for UiManager<'a> {
+impl<'a> Default for UiBlueprints<'a> {
     fn default() -> Self {
         Self::new()
     }

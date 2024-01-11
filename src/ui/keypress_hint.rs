@@ -4,18 +4,19 @@
 // however this entity should not consume the event, it should proxy them
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{
-    layout::Rect,
-    widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
-};
+use ratatui::layout::Rect;
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::Frame;
 
 use std::cell::RefCell;
-use std::{collections::VecDeque, rc::Rc, time::Instant};
+use std::collections::VecDeque;
+use std::rc::Rc;
+use std::time::Instant;
 
-use crate::{app::App, tio::TerminalEvent};
+use crate::app::App;
+use crate::tio::TerminalEvent;
 
-use super::{UiEntity, UiId, UiMetaData, UiTag};
+use super::{TerminalEventResult, UiEntity, UiId, UiMetaData, UiTag};
 
 struct InternalState {
     last_tick: Instant,
@@ -102,8 +103,8 @@ impl KeyPressHint {
         let mut ret = String::new();
         for k in self.internal_state.borrow().cached_key.iter() {
             match k.modifiers {
-                KeyModifiers::SHIFT => ret.push_str("󰘶"),
-                KeyModifiers::ALT => ret.push_str("󰘵"),
+                KeyModifiers::SHIFT => ret.push_str("󰘶 "),
+                KeyModifiers::ALT => ret.push_str("󰘵 "),
                 KeyModifiers::CONTROL => ret.push('󰘴'),
                 _ => {}
             }
@@ -114,16 +115,6 @@ impl KeyPressHint {
         }
 
         ret
-    }
-
-    pub fn proxy_event(&self, event: TerminalEvent, _app: &App) -> TerminalEvent {
-        let TerminalEvent::Key(k_event) = event else {
-            return event;
-        };
-
-        self.add_new_keyevnet(k_event);
-
-        event
     }
 }
 
@@ -140,5 +131,16 @@ impl UiEntity for KeyPressHint {
         let right_bottom_corner = Rect::new(x - hint_len - 1, y - 3, hint_len, 3);
         frame.render_widget(Clear, right_bottom_corner);
         frame.render_widget(self.get_ui(&representation), right_bottom_corner);
+    }
+
+    // proxy key event
+    fn handle_terminal_event(&mut self, event: TerminalEvent, app: &App) -> TerminalEventResult {
+        let TerminalEvent::Key(k_event) = event else {
+            return TerminalEventResult::NotHandled(event);
+        };
+
+        self.add_new_keyevnet(k_event);
+
+        TerminalEventResult::NotHandled(event)
     }
 }
