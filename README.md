@@ -2,6 +2,11 @@
 chat-tui is a terminal client for chating.
 
 ## WIP
+feat: highlight
+
+<img width="1050" alt="Screenshot 2024-01-13 at 21 23 39" src="https://github.com/DriedYellowPeach/chat-tui/assets/49219666/f78db127-e665-464f-84e2-a499bce6b204">
+
+
 feat: key press hint
 
 ![out](https://github.com/DriedYellowPeach/chat-tui/assets/49219666/273e7067-78d3-4b64-a388-1df0e8b8b583)
