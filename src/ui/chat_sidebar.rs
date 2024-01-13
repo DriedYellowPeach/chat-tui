@@ -138,9 +138,19 @@ impl LeftSessionList {
             items.push(ListItem::new(Line::from("Waiting for data")));
         }
 
+        let bdr_stl = match app.state_model {
+            StateModel::Chats => Style::new().fg(Color::Green),
+            _ => Style::default(),
+        };
+
         SessionListUI::Already(
             List::new(items)
-                .block(Block::default().borders(Borders::ALL).title(title))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .title(title)
+                        .border_style(bdr_stl),
+                )
                 .highlight_style(
                     Style::default()
                         .bg(Color::DarkGray)

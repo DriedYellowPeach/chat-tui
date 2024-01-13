@@ -1,3 +1,4 @@
+use color_eyre::owo_colors::OwoColorize;
 use crossterm::event::KeyCode;
 use ratatui::prelude::*;
 use ratatui::text::Line;
@@ -10,6 +11,7 @@ use std::rc::Rc;
 
 use crate::action::Action;
 use crate::app::App;
+use crate::models::state::StateModel;
 use crate::models::RemoteData;
 use crate::tio::TerminalEvent;
 
@@ -119,17 +121,25 @@ impl RightSpace {
             .content_length(long_text_len);
     }
 
-    fn get_ui_paragraph<'a>(&self, _app: &App) -> Paragraph<'a> {
+    fn get_ui_paragraph<'a>(&self, app: &App) -> Paragraph<'a> {
+        let bdr_stl = match app.state_model {
+            StateModel::Messages => Style::new().fg(Color::Green),
+            _ => Style::default(),
+        };
+
         let create_block = |title| {
             Block::default()
                 .borders(Borders::ALL)
+                .border_style(bdr_stl)
                 .gray()
                 .title(Span::styled(
                     title,
                     Style::default().add_modifier(Modifier::BOLD),
                 ))
         };
+
         let internal = self.internal_state.borrow();
+
         let text = internal
             .messages
             .iter()

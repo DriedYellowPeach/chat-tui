@@ -1,4 +1,5 @@
 use ratatui::layout::Rect;
+use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
 
@@ -7,6 +8,7 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use crate::app::App;
+use crate::models::state::StateModel;
 
 use super::{UiEntity, UiId, UiMetaData, UiTag};
 
@@ -55,9 +57,18 @@ impl FpsHint {
         ret
     }
 
-    fn get_ui<'a>(&self, fps: f64) -> Paragraph<'a> {
-        let fps_hint = Paragraph::new(format!("{:.2} fps", fps))
-            .block(Block::default().title("fps hint").borders(Borders::ALL));
+    fn get_ui<'a>(&self, app: &App, fps: f64) -> Paragraph<'a> {
+        let bdr_stl = match app.state_model {
+            StateModel::FPS => Style::new().fg(Color::Green),
+            _ => Style::default(),
+        };
+
+        let fps_hint = Paragraph::new(format!("{:.2} fps", fps)).block(
+            Block::default()
+                .title("fps hint")
+                .borders(Borders::ALL)
+                .border_style(bdr_stl),
+        );
         fps_hint
     }
 
@@ -93,11 +104,11 @@ impl FpsHint {
 }
 
 impl UiEntity for FpsHint {
-    fn draw(&self, _app: &App, frame: &mut Frame, area: Rect) {
+    fn draw(&self, app: &App, frame: &mut Frame, area: Rect) {
         let (x, y) = (area.right(), area.top());
         let corner = Rect::new(x - 13, y, 12, 3);
         frame.render_widget(Clear, corner);
         let fps = self.count_fps();
-        frame.render_widget(self.get_ui(fps), corner);
+        frame.render_widget(self.get_ui(app, fps), corner);
     }
 }
