@@ -6,7 +6,7 @@ use std::rc::Rc;
 use crate::action::Action;
 use crate::models::{messages::MessagesModel, sessions::SessionsModel, state::StateModel};
 use crate::tio::Tio;
-use crate::ui::{
+use crate::ui_entities::{
     blueprints::UiBlueprints, root_window::RootWindow, TerminalEventResult, UiEntity, UiMetaData,
 };
 
@@ -83,6 +83,9 @@ impl App {
                 // this will update data in app
                 self.handle_action(action);
             }
+
+            // based on newest model, update ui here
+            root_window.update_with_context_model(&self);
 
             // draw ui here
             if root_window.meta_data.get_should_draw() {

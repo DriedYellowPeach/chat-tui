@@ -9,6 +9,7 @@ use crate::app::App;
 use crate::tio::TerminalEvent;
 
 pub mod blueprints;
+pub mod chat_item;
 pub mod chat_sidebar;
 pub mod fps_hint;
 pub mod input_field;

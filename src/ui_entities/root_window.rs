@@ -52,6 +52,11 @@ impl RootWindow {
         ret
     }
 
+    pub fn update_with_context_model(&mut self, app: &App) {
+        // do nothing, for current
+        self.left_session_list.update_with_context_model(&app);
+    }
+
     pub fn with_tag(self, tag: UiTag) -> Self {
         let mut ret = self;
         ret.tag = Some(tag);
@@ -73,9 +78,9 @@ impl UiEntity for RootWindow {
             .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
             .split(area);
 
-        ui_mgr.add_new_blueprint(&self.left_session_list, chunks[0], layer1);
         self.left_session_list
             .make_blueprints(chunks[0], ui_mgr, layer1);
+        ui_mgr.add_new_blueprint(&self.left_session_list, chunks[0], layer1);
 
         ui_mgr.add_new_blueprint(&self.right_space, chunks[1], layer1);
         self.right_space.make_blueprints(chunks[1], ui_mgr, layer1);
