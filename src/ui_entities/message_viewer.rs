@@ -1,4 +1,3 @@
-use color_eyre::owo_colors::OwoColorize;
 use crossterm::event::KeyCode;
 use ratatui::prelude::*;
 use ratatui::text::Line;

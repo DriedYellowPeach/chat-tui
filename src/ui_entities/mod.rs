@@ -101,7 +101,7 @@ pub enum TerminalEventResult {
 }
 
 pub trait UiEntity {
-    fn handle_terminal_event(&mut self, event: TerminalEvent, app: &App) -> TerminalEventResult {
+    fn handle_terminal_event(&mut self, event: TerminalEvent, _app: &App) -> TerminalEventResult {
         TerminalEventResult::NotHandled(event)
     }
 
@@ -118,7 +118,7 @@ pub trait UiEntity {
     }
 
     // draw will be used by the final blueprints, to draw the UiEntity objects in specific order
-    fn draw(&self, app: &App, frame: &mut Frame, area: Rect) {
+    fn draw(&self, _app: &App, _frame: &mut Frame, _area: Rect) {
         /* do noting */
     }
 }

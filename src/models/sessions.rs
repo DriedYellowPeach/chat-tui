@@ -55,19 +55,16 @@ impl SessionsModel {
                 session: ChatSession::WithOther(UsrID(String::from("Alice"))),
                 bookmark: MsgID(String::from("0")),
                 unread_msg: 0,
-                heat: 0,
             },
             SessionRecord {
                 session: ChatSession::WithOther(UsrID(String::from("Bob"))),
                 bookmark: MsgID(String::from("0")),
                 unread_msg: 1,
-                heat: 0,
             },
             SessionRecord {
                 session: ChatSession::Group(GrpID(String::from("Nordic Nostalgia"))),
                 bookmark: MsgID(String::from("0")),
                 unread_msg: 5,
-                heat: 0,
             },
         ];
 

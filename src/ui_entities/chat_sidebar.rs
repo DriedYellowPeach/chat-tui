@@ -1,14 +1,14 @@
 use crossterm::event::KeyCode;
 use ratatui::layout::Layout;
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState};
+use ratatui::widgets::{Block, Borders};
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::action::{Action, MessagesModelAction, StateModelAction};
 use crate::app::App;
-use crate::models::{state::StateModel, ChatSession, RemoteData, SessionRecord};
+use crate::models::{state::StateModel, RemoteData};
 use crate::tio::TerminalEvent;
 
 use super::chat_item::ChatItem;
@@ -40,11 +40,6 @@ pub struct LeftSessionList {
     internal: RefCell<InternalState>,
     meta_data: Rc<UiMetaData>,
     items: Vec<ChatItem>,
-}
-
-enum SessionListUI<'a> {
-    Already(List<'a>),
-    Waiting(List<'a>),
 }
 
 impl LeftSessionList {
@@ -143,16 +138,7 @@ impl LeftSessionList {
 }
 
 impl UiEntity for LeftSessionList {
-    fn draw(&self, app: &App, frame: &mut Frame, area: Rect) {
-        // let ui = self.get_ui(app, area);
-        // match ui {
-        //     SessionListUI::Already(list) => {
-        //         frame.render_stateful_widget(list, area, &mut self.state.borrow_mut());
-        //     }
-        //     SessionListUI::Waiting(list) => {
-        //         frame.render_stateful_widget(list, area, &mut self.state.borrow_mut())
-        //     }
-        // }
+    fn draw(&self, _app: &App, frame: &mut Frame, area: Rect) {
         frame.render_widget(Block::default().borders(Borders::ALL).title("Chats"), area);
     }
 
@@ -172,7 +158,7 @@ impl UiEntity for LeftSessionList {
 
         let height = inner_area.height;
         // TODO, how to use the left_over
-        let (num, left_over) = (height / 4, height % 4);
+        let (num, _left_over) = (height / 4, height % 4);
         let num = std::cmp::min(num as usize, self.items.len());
         let mut constraints = vec![Constraint::Length(4); num];
         constraints.push(Constraint::Min(4));

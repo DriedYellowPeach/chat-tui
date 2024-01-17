@@ -6,7 +6,7 @@ use std::rc::Rc;
 use crate::action::{Action, StateModelAction};
 use crate::app::App;
 use crate::models::state::StateModel;
-use crate::tio::{TerminalEvent, Tio};
+use crate::tio::TerminalEvent;
 
 use super::{
     blueprints::UiBlueprints, chat_sidebar::LeftSessionList, fps_hint::FpsHint,
@@ -54,7 +54,7 @@ impl RootWindow {
 
     pub fn update_with_context_model(&mut self, app: &App) {
         // do nothing, for current
-        self.left_session_list.update_with_context_model(&app);
+        self.left_session_list.update_with_context_model(app);
     }
 
     pub fn with_tag(self, tag: UiTag) -> Self {

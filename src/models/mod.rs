@@ -1,6 +1,7 @@
 /// Model is the module for representing all underlying data for this application
 /// Basic types includes: User, Message, Group
 ///
+///
 pub mod messages;
 pub mod sessions;
 pub mod state;
@@ -25,7 +26,7 @@ pub struct GrpID(String);
 #[derive(Debug, Clone)]
 pub struct MsgID(String);
 
-pub struct User {
+struct User {
     pub id: UsrID,
     state: UserState,
     uname: String,
@@ -98,7 +99,6 @@ pub struct SessionRecord {
     pub session: ChatSession,
     pub bookmark: MsgID,
     pub unread_msg: usize,
-    heat: usize,
 }
 
 pub struct SessionPool(pub Vec<SessionRecord>);

@@ -117,11 +117,6 @@ impl ChatItem {
 
 impl UiEntity for ChatItem {
     fn draw(&self, app: &App, frame: &mut ratatui::prelude::Frame, area: Rect) {
-        // let area = area.inner(&Margin {
-        //     horizontal: 1,
-        //     vertical: 0,
-        // });
-
         let item = self.get_ui(app, area);
 
         let top_bottom_sep = Layout::default()

@@ -134,7 +134,7 @@ impl UiEntity for KeyPressHint {
     }
 
     // proxy key event
-    fn handle_terminal_event(&mut self, event: TerminalEvent, app: &App) -> TerminalEventResult {
+    fn handle_terminal_event(&mut self, event: TerminalEvent, _app: &App) -> TerminalEventResult {
         let TerminalEvent::Key(k_event) = event else {
             return TerminalEventResult::NotHandled(event);
         };

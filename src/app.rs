@@ -85,7 +85,7 @@ impl App {
             }
 
             // based on newest model, update ui here
-            root_window.update_with_context_model(&self);
+            root_window.update_with_context_model(self);
 
             // draw ui here
             if root_window.meta_data.get_should_draw() {
