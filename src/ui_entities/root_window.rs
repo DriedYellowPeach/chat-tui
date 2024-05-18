@@ -53,7 +53,6 @@ impl RootWindow {
     }
 
     pub fn update_with_context_model(&mut self, app: &App) {
-        // do nothing, for current
         self.left_session_list.update_with_context_model(app);
     }
 

@@ -6,6 +6,7 @@ use std::cell::RefCell;
 
 use crate::app::App;
 use crate::models::ChatSession;
+use crate::widgets::hilight_area::HighlightArea;
 
 use super::UiEntity;
 
@@ -43,10 +44,8 @@ impl ChatItem {
         }
     }
 
-    fn with_highlight(self) -> Self {
-        let mut ret = self;
-        ret.is_highlight = true;
-        ret
+    pub fn set_highlight(&mut self) {
+        self.is_highlight = true;
     }
 
     fn update_with_context_model(&self, _app: &App) {
@@ -72,37 +71,38 @@ impl ChatItem {
         self.update_with_context_model(app);
 
         let internal = self.internal.borrow();
+        let name;
+        let text_style;
 
-        let name = if self.is_highlight {
-            format!("*{}", internal.name)
+        if self.is_highlight {
+            name = format!("*{}", internal.name);
+            text_style = Style::default().fg(Color::Black);
         } else {
-            internal.name.clone()
-        };
+            name = internal.name.clone();
+            text_style = Style::default().fg(Color::White);
+        }
 
         let name_sec = Paragraph::new(name)
             .block(Block::default().borders(Borders::NONE))
-            .style(Style::default().fg(Color::White))
+            .style(text_style)
             .alignment(Alignment::Left)
             .wrap(ratatui::widgets::Wrap { trim: true });
 
-        let text: Text = internal.unread_msg.to_string().fg(Color::Red).into();
-
-        let unread_msg_sec = Paragraph::new(text)
+        let unread_msg_sec = Paragraph::new(internal.unread_msg.to_string().clone())
             .block(Block::default().borders(Borders::NONE))
-            .style(Style::default().fg(Color::White))
+            .style(Style::default().fg(Color::Red))
             .alignment(Alignment::Right)
             .wrap(ratatui::widgets::Wrap { trim: true });
 
         let msg_preview_sec = Paragraph::new(internal.msg_preview.clone())
             .block(Block::default().borders(Borders::NONE))
-            .style(Style::default().fg(Color::White))
+            .style(text_style)
             .alignment(Alignment::Left)
             .wrap(ratatui::widgets::Wrap { trim: true });
 
         let msg_timestamp_sec = Paragraph::new(internal.msg_timestamp.clone())
             .block(Block::default().borders(Borders::NONE))
-            .style(Style::default().fg(Color::White))
-            // .style(Style::default().fg(Color::White).bg(Color::Red))
+            .style(text_style)
             .alignment(Alignment::Right)
             .wrap(ratatui::widgets::Wrap { trim: true });
 
@@ -149,6 +149,20 @@ impl UiEntity for ChatItem {
         let msg_preview_sec = left_right_bottom[0];
         let time_sec = left_right_bottom[1];
         let separator = top_bottom_sep[2];
+
+        // test highlight
+
+        if self.is_highlight {
+            let highlight_style = Style::default().bg(Color::Green);
+            frame.render_widget(
+                HighlightArea::default().with_style(highlight_style),
+                top_bottom_sep[0],
+            );
+            frame.render_widget(
+                HighlightArea::default().with_style(highlight_style),
+                top_bottom_sep[1],
+            );
+        }
 
         frame.render_widget(item.name_sec, name_sec);
         frame.render_widget(item.msg_preview_sec, msg_preview_sec);

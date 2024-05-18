@@ -1,6 +1,6 @@
 use crossterm::event::KeyCode;
 use ratatui::prelude::*;
-use ratatui::text::Line;
+use ratatui::text::Text;
 use ratatui::widgets::{
     Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
 };
@@ -13,12 +13,13 @@ use crate::app::App;
 use crate::models::state::StateModel;
 use crate::models::RemoteData;
 use crate::tio::TerminalEvent;
+use crate::widgets::message_bubble::MessageBubble;
 
 use super::{TerminalEventResult, UiEntity, UiId, UiMetaData, UiTag};
 
 #[derive(Default)]
 struct InternalState {
-    messages: Vec<String>,
+    messages: Vec<(String, String)>,
     title: String,
     pub vertical_scroll_state: ScrollbarState,
     pub vertical_scroll: usize,
@@ -44,27 +45,30 @@ impl RightSpace {
 
     pub fn with_context_model(self, app: &App) -> Self {
         let ret = self;
-        let mut messages = Vec::new();
+        let mut messages = Vec::<(String, String)>::new();
         let title;
         // let default_rs = Self::default();
         if let Some(session_name) = app.messages_model.bind.clone() {
             title = format!("Messages from {:?}", session_name);
             match app.messages_model.get_model_data() {
-                RemoteData::Success(data) => data
-                    .iter()
-                    .for_each(|m| messages.push(format!("[message content of {:?}]\n", m))),
+                RemoteData::Success(data) => data.iter().for_each(|m| {
+                    messages.push((
+                        "kevin".to_string(),
+                        format!("[message content of {:?}]: \n", m),
+                    ))
+                }),
                 _ => {
-                    messages.push(String::from("messages is loading..."));
+                    messages.push(("PIXAL".to_string(), String::from("messages is loading...")));
                 }
             }
         } else {
             title = String::from("No Session Selected");
         }
 
-        let mut long_text = "abcdefg".chars().cycle().take(200).collect::<String>();
-        long_text.push('\n');
-        let long_text_len = long_text.len();
-        messages.push(long_text);
+        // let mut long_text = "abcdefg".chars().cycle().take(200).collect::<String>();
+        // long_text.push('\n');
+        // let long_text_len = long_text.len();
+        // messages.push(long_text);
 
         let mut internal = ret.internal_state.borrow_mut();
         internal.title = title;
@@ -72,9 +76,9 @@ impl RightSpace {
         internal.vertical_scroll_state = internal
             .vertical_scroll_state
             .content_length(internal.messages.len());
-        internal.horizontal_scroll_state = internal
-            .horizontal_scroll_state
-            .content_length(long_text_len);
+        // internal.horizontal_scroll_state = internal
+        //     .horizontal_scroll_state
+        //     .content_length(long_text_len);
         drop(internal);
 
         ret
@@ -93,21 +97,25 @@ impl RightSpace {
         if let Some(session_name) = app.messages_model.bind.clone() {
             title = format!("Messages from {:?}", session_name);
             match app.messages_model.get_model_data() {
-                RemoteData::Success(data) => data
-                    .iter()
-                    .for_each(|m| messages.push(format!("[message content of {:?}]\n", m))),
+                RemoteData::Success(data) => data.iter().for_each(|m| {
+                    messages.push((
+                        "kevin".to_string(),
+                        format!("[message content of {:?}]", m),
+                        // "hello".to_string(),
+                    ))
+                }),
                 _ => {
-                    messages.push(String::from("messages is loading..."));
+                    messages.push(("PIXAL".to_string(), String::from("messages is loading...")));
                 }
             }
         } else {
             title = String::from("No Session Selected");
         }
 
-        let mut long_text = "abcdefg".chars().cycle().take(200).collect::<String>();
-        long_text.push('\n');
-        let long_text_len = long_text.len();
-        messages.push(long_text);
+        // let mut long_text = "abcdefg".chars().cycle().take(200).collect::<String>();
+        // long_text.push('\n');
+        // let long_text_len = long_text.len();
+        // messages.push(long_text);
 
         let mut internal = self.internal_state.borrow_mut();
         internal.title = title;
@@ -115,12 +123,12 @@ impl RightSpace {
         internal.vertical_scroll_state = internal
             .vertical_scroll_state
             .content_length(internal.messages.len());
-        internal.horizontal_scroll_state = internal
-            .horizontal_scroll_state
-            .content_length(long_text_len);
+        // internal.horizontal_scroll_state = internal
+        //     .horizontal_scroll_state
+        //     .content_length(long_text_len);
     }
 
-    fn get_ui_paragraph<'a>(&self, app: &App) -> Paragraph<'a> {
+    fn get_ui_paragraph<'a>(&self, app: &App, area: Rect) -> Paragraph<'a> {
         let bdr_stl = match app.state_model {
             StateModel::Messages => Style::new().fg(Color::Green),
             _ => Style::default(),
@@ -137,17 +145,32 @@ impl RightSpace {
                 ))
         };
 
-        let internal = self.internal_state.borrow();
+        let mut internal = self.internal_state.borrow_mut();
 
-        let text = internal
+        let mut text = Text::default();
+        let max_width = area.width / 3 * 2;
+        let bbls = internal
             .messages
             .iter()
-            .map(|m| Line::from(m.clone()))
+            .map(|m| {
+                let mut bbl = MessageBubble::new(max_width, &m.1, &m.0);
+                bbl.finish_painting();
+                Text::from(bbl)
+            })
             .collect::<Vec<_>>();
+
+        for b in bbls {
+            text.extend(b);
+        }
+
+        internal.vertical_scroll_state = internal
+            .vertical_scroll_state
+            .content_length(text.lines.len());
 
         let paragraph = Paragraph::new(text)
             .gray()
             .block(create_block(internal.title.clone()))
+            .alignment(Alignment::Left)
             .scroll((
                 internal.vertical_scroll as u16,
                 internal.horizontal_scroll as u16,
@@ -177,7 +200,7 @@ impl RightSpace {
 impl UiEntity for RightSpace {
     fn draw(&self, app: &App, frame: &mut Frame, area: Rect) {
         self.update_with_context_model(app);
-        let paragraph = self.get_ui_paragraph(app);
+        let paragraph = self.get_ui_paragraph(app, area);
         let vertical_scroll = self.get_ui_vertical_scrollbar(app);
         let horizontal_scroll = self.get_ui_horizontal_scrollbar(app);
         frame.render_widget(paragraph, area);
@@ -191,6 +214,16 @@ impl UiEntity for RightSpace {
             area,
             &mut self.internal_state.borrow_mut().horizontal_scroll_state,
         );
+    }
+
+    fn make_blueprints<'a, 'b>(
+        &'a self,
+        _area: Rect,
+        _ui_mgr: &mut super::blueprints::UiBlueprints<'b>,
+        _layer: isize,
+    ) where
+        'a: 'b,
+    {
     }
 
     fn handle_terminal_event(&mut self, event: TerminalEvent, _app: &App) -> TerminalEventResult {

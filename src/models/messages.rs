@@ -29,7 +29,7 @@ impl MessagesModel {
             ChatSession::WithOther(usr) if usr.0 == "SystemBotRaphina" => {
                 vec![MsgID("Hello, I'm Raphina. I'm a bot.".to_string())]
             }
-            _ => (1..100).map(|x| MsgID(x.to_string())).collect(),
+            _ => (1..100).map(|x| MsgID("a".repeat(x * 3))).collect(),
         }
     }
 

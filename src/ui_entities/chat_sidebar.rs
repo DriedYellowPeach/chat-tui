@@ -92,6 +92,12 @@ impl LeftSessionList {
             }
         }
 
+        if let Some(select_idx) = self.internal.borrow().selected() {
+            if select_idx < items.len() {
+                items[select_idx].set_highlight();
+            }
+        }
+
         self.items = items;
     }
 
@@ -138,8 +144,18 @@ impl LeftSessionList {
 }
 
 impl UiEntity for LeftSessionList {
-    fn draw(&self, _app: &App, frame: &mut Frame, area: Rect) {
-        frame.render_widget(Block::default().borders(Borders::ALL).title("Chats"), area);
+    fn draw(&self, app: &App, frame: &mut Frame, area: Rect) {
+        let bdr_stl = match app.state_model {
+            StateModel::Chats => Style::new().fg(Color::Green),
+            _ => Style::default(),
+        };
+        frame.render_widget(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Chats")
+                .border_style(bdr_stl),
+            area,
+        );
     }
 
     fn make_blueprints<'a, 'b>(

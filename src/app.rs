@@ -84,7 +84,7 @@ impl App {
                 self.handle_action(action);
             }
 
-            // based on newest model, update ui here
+            // based on latest model, update ui here
             root_window.update_with_context_model(self);
 
             // draw ui here
