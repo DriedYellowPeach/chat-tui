@@ -2,6 +2,10 @@
 chat-tui is a terminal client for chating.
 
 ## WIP
+feat: new message bubble style
+![Screenshot 2025-03-22 at 12 53 20](https://github.com/user-attachments/assets/634e9669-fb02-47f5-8322-86869c65109d)
+
+
 feat: highlight
 
 <img width="1050" alt="Screenshot 2024-01-13 at 21 23 39" src="https://github.com/DriedYellowPeach/chat-tui/assets/49219666/f78db127-e665-464f-84e2-a499bce6b204">
